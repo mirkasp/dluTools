@@ -116,7 +116,8 @@ const sOperation : array[ boolean ] of AplString = ( 'open', 'runas' );
 
 function ShowCustomRunDialog( OwnerWnd : HWND;
                               InitialDir, Title, Description: PAplChar;
-                              flags: Integer): Boolean;
+                              flags: Integer;
+                              StandardCaptions: Boolean): Boolean;
 begin
    try
       RunFileDlg( OwnerWnd, 0, InitialDir, Title, Description, Flags );
@@ -157,7 +158,7 @@ begin
        OpenRecycleBin;
     end;
     wdRunFile: begin
-       ShowCustomRunDialog( FindWindow('Shell_TrayWnd', NIL), NIL, NIL, NIL, RFF_NOOPT );
+       ShowCustomRunDialog( FindWindow('Shell_TrayWnd', NIL), NIL, NIL, NIL, RFF_NOOPT, TRUE);
     end;
     wdUserManager: begin
        ShellExecute(0, 'open', 'musrmgr.exe', '', '', SW_SHOW);
