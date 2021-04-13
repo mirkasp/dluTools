@@ -1,11 +1,12 @@
 unit dluSplitString;
 
-{$IFDEF FPC}
-  {$mode objfpc}{$H+}
-  {$modeswitch UNICODESTRINGS+}
-{$ELSE}
-  {$MESSAGE HINT 'Tested only for LAZARUS!'}
-{$ENDIF}
+{$I dluOptions.inc}
+//{$IFDEF FPC}
+//  {$mode objfpc}{$H+}
+//  {$modeswitch UNICODESTRINGS+}
+//{$ELSE}
+//  {$MESSAGE HINT 'Tested only for LAZARUS!'}
+//{$ENDIF}
 
 
 interface
