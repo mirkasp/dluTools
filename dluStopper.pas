@@ -39,7 +39,7 @@ end;
 
 function TuStopper.LapTime: TMsClockCounter;
 begin
-   Result := fLapTime;
+   Result := TickCount() - fElapsed;
 end;
 
 procedure TuStopper.Start;
@@ -52,8 +52,8 @@ end;
 function TuStopper.Stop: TMsClockCounter;
 begin
    if fIsRunning then begin
-      fLapTime := TickCount() - fElapsed;
-      Result   := fLapTime;
+      Result     := self.LapTime;
+      fIsRunning := false;
    end else
       Result := 0;
 end;
