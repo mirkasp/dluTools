@@ -2,6 +2,7 @@ unit dluPriorityQueue;
 
 {$IFDEF FPC}
    {$mode Delphi}{$H+}
+   {$WARN 6058 off : Call to subroutine "$1" marked as inline is not inlined}
 {$ELSE}
    {$MESSAGE HINT 'Tested only for LAZARUS!'}
 {$ENDIF}
@@ -21,6 +22,7 @@ type IuPriorityQueue<T> = interface
 end;
 
 // kolejka priorytetowa o zmiennej (nieustalonej) d³ugoœci
+// doskona³e do sortowania i symulowania stosu !
 //
 type TuVariableLengthPQ<Key> = class( TInterfacedObject, IuPriorityQueue<Key> )
   strict private
@@ -178,7 +180,7 @@ function TuVariableLengthPQ<Key>.DelTop: Key;
 // Zwraca i usuwa topowy (najwiêkszy lub najmniejszy) klucz z kolejki priorytetowej.
 // Zg³asza wyj¹tek, jeœli kolejka jest pusta.
 //
-  var m : Key;
+  //var m : Key;
 begin
    Result := self.Top();
    ExChg( 1, fN );
