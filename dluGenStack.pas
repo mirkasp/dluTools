@@ -4,15 +4,21 @@ unit dluGenStack;
 
 interface
 
+uses Classes
+   ;
 
 type
-  {$IFDEF FPC}generic{$ENDIF}
+  {$IFDEF FPC}
+
+  { TuStack }
+
+generic{$ENDIF}
   TuStack<ITEM> = class
   strict private
-     fStartCapacity : integer;
-     fListLen       : integer;
-     fNextElem      : integer;
-     fList          : array of ITEM;
+     fStartCapacity  : integer;
+     fListLen        : integer;
+     fNextElem       : integer;
+     fList           : array of ITEM;
   public
      const DEFAULT_START_CAPACITY = 1024;
      constructor Create( const AStartCapacity: integer = DEFAULT_START_CAPACITY );
@@ -21,6 +27,7 @@ type
      procedure Push( const xElem: ITEM ); inline;
      function Pop: ITEM; inline;
      function IsEmpty: boolean; {$IFNDEF FPC}inline;{$ENDIF}
+     function TryPop( var AElem: ITEM ): boolean;
 end;
 
 implementation
@@ -46,6 +53,15 @@ end;
 function TuStack{$IFNDEF FPC}<ITEM>{$ENDIF}.IsEmpty: boolean;
 begin
    Result := (fNextElem = 0);
+end;
+
+function TuStack{$IFNDEF FPC}<ITEM>{$ENDIF}.TryPop(var AElem: ITEM): boolean;
+begin
+   try
+      Result := not IsEmpty;
+      if Result then AElem := Pop;
+    finally
+    end;
 end;
 
 function TuStack{$IFNDEF FPC}<ITEM>{$ENDIF}.Pop: ITEM;
