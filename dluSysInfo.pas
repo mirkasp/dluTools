@@ -104,7 +104,7 @@ begin
   MS_Ex.dwLength := SizeOf( TMemoryStatus );
   GlobalMemoryStatus( MS_Ex );
 
-  Result := String( Format( '%s%0.0n B%s total, %s%0.0n B%s avail',
+  Result := String( Format( '%s%0.0n B%s total, %s%0.0n B%s free',
                             [ aBoldStart[ ABold ], 1.0 * MS_Ex.dwTotalPhys, aBoldEnd[ ABold ],
                               aBoldStart[ ABold ], 1.0 * MS_Ex.dwAvailPhys, aBoldEnd[ ABold ]
                             ] ) );
@@ -135,7 +135,7 @@ function GetMemoryInfoEx(const ABold: boolean): string;
 begin
   MS_Ex.dwLength := SizeOf( TMemoryStatusEx );
   GlobalMemoryStatusEx( MS_Ex );
-  Result := String( Format( '%s%0.0n B%s total, %s%0.0n B%s avail',
+  Result := String( Format( '%s%0.0n B%s total, %s%0.0n B%s free',
                             [ aBoldStart[ ABold ], 1.0 * MS_Ex.ullTotalPhys, aBoldEnd[ ABold ],
                               aBoldStart[ ABold ], 1.0 * MS_Ex.ullAvailPhys, aBoldEnd[ ABold ]
                             ] ) );
