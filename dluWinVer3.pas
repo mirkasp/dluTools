@@ -45,11 +45,13 @@ type
      procedure Prepare_Win32s_Platform;
      procedure Prepare_Win32_Windows_Platform;
      procedure Prepare_Win32_NT_Platform;
+    function GetCompilationInfo: WideString;
    public
      constructor Create;
      destructor Destroy; override;
      property Name                 : WideString read fName;
      property TechnicalInfo        : WideString read fTechnicalInfo;
+     property CompilationInfo      : WideString read GetCompilationInfo;
      property PlatformId           : Cardinal   read fPlatformId;
      property MajorVersion         : Cardinal   read fMajorVersion;
      property MinorVersion         : Cardinal   read fMinorVersion;
@@ -398,6 +400,11 @@ begin
                                     fCSDVersion, fServicePackMajor, fServicePackMinor,
                                     IntToHex( fSuiteMask, 2*SizeOf(fSuitemask) ), fProductType, fProductInfo, fLang ] );
 
+   fTechnicalInfo:= {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d, platform=%d, csd="%s", SP=%d.%d, suite=0x%s, product_type=%d, product_info=%d, lang="%s"',
+                                  [ fMajorVersion, fMinorVersion, fBuildNumber, fPlatformId,
+                                    fCSDVersion, fServicePackMajor, fServicePackMinor,
+                                    IntToHex( fSuiteMask, 2*SizeOf(fSuitemask) ), fProductType, fProductInfo, fLang ] );
+
 end;
 
 destructor TWinVerSpec.Destroy;
@@ -406,6 +413,11 @@ begin
    inherited Destroy;
 end;
 
+
+function TWinVerSpec.GetCompilationInfo: WideString;
+begin
+   Result := Trim( {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d %s', [ fMajorVersion, fMinorVersion, fBuildNumber, fCSDVersion ] ) );
+end;
 
 {
 https://stackoverflow.com/questions/8144599/getting-the-windows-version
