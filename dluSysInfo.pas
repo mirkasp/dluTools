@@ -26,6 +26,8 @@ function GetMemoryInfoEx(const ABold: boolean = false): string;
 function GetFPUinfo(): string;
 function GetTargetCPU(): string;
 
+function InsideIDE(): boolean;
+
 
 implementation
 
@@ -265,5 +267,29 @@ begin
 {$ENDIF}
 end;
 
+function InsideIDE(): boolean;
+begin
+{$IFDEF FPC}
+   Result := IsDebuggerPresent();
+{$ELSE}
+   {$WARN SYMBOL_PLATFORM OFF}
+   Result := (System.DebugHook <> 0);
+   {$WARN SYMBOL_PLATFORM ON}
+{$ENDIF}
+
+
+
+//{$IFDEF MSWINDOWS}
+//   {$IFDEF FPC}
+//   Result := IsDebuggerPresent();
+//   {$ELSE}
+//   {$WARN SYMBOL_PLATFORM OFF}
+//   Result := (System.DebugHook <> 0);
+//   {$WARN SYMBOL_PLATFORM ON}
+//   {$ENDIF}
+//{$ELSE}
+//   Result := false;
+//{$ENDIF}
+end;
 
 end.

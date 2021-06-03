@@ -28,14 +28,9 @@ uses dluSysInfo
 {$ENDIF}
 {$IFNDEF FPC}
    , SysUtils
-   , mkSysInfo
+   //, mkSysInfo
 {$ENDIF}
    ;
-
-//function BoolAsStr( const ACondition: boolean; const ATrueStr, AFalseStr: string ): string; inline;
-//begin
-//   if ACondition then Result := ATrueStr else Result := AFalseStr;
-//end;
 
 function GetAppCaption( const AppShortName: String; const AOptions: TAppCaptionOptions ): String;
   const DEBUG_MODE = {$IFOPT D+} ', DEBUG mode' {$ELSE} '' {$endif};
@@ -47,13 +42,7 @@ begin
       Result := Result + ' '
                + acVersionStr[ apcEnglish in AOptions ] + '.' + dluFileInfo.GetFileVersion()
                + ' [' + dluSysInfo.CompilerVersionAsString()
-      {$IFDEF FPC}
-               {$IFDEF WINDOWS}
-               + acInsideIdeStr[ IsDebuggerPresent() ]
-               {$ENDIF}
-      {$ELSE}
-               + acInsideIdeStr[ mkSysInfo.IsInsideDelphiIDE() ]
-      {$ENDIF}
+               + acInsideIdeStr[ dluSysInfo.InsideIDE() ]
                + DEBUG_MODE
                + ']';
    end;
