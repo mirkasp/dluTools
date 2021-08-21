@@ -24,11 +24,37 @@ implementation
 
 uses SysUtils, Variants;
 
+
+
+{$IFDEF FPC}
+{$IFDEF UNICODE}
+function X( const AText: UnicodeString ): AnsiString; inline;
+begin
+    Result := Utf8Encode( AText );
+end;
+{$ELSE}
+function X( const AText: AnsiString ): AnsiString; inline;
+begin
+    Result := AText;
+end;
+{$ENDIF}
+{$ELSE}
+// for delphi
+function X( const AText: string ): string; inline;
+begin
+    Result := AText;
+end;
+{$ENDIF}
+
+
+
+
+
 { TStringsHelper }
 
 procedure TStringsHelper.AddFmt(const AText: string; const AParam: array of const);
 begin
-  self.Add( Format( AText, AParam ) );
+   self.Add( Format( x( AText ), AParam ) );
 end;
 
 procedure TStringsHelper.AddLine(const AChar: char; const ACount: integer);
@@ -43,8 +69,8 @@ begin
    case vt of
       varEmpty    : self.AddPair( AKey,  'Value: Unassigned' );     // The variant is Unassigned.
       varNull     : self.AddPair( AKey,  'Value: NULL' );           // The variant is Null.
-      varSmallint : self.AddPair( AKey,  Integer( AValue ) ); // 16-bit signed integer (type Smallint in Delphi, short in C++ ).
-      varInteger  : self.AddPair( AKey,  Integer( AValue ) );// 32-bit signed integer (type Integer in Delphi, int in C++).
+      varSmallint : self.AddPair( AKey,  Integer( AValue ) );       // 16-bit signed integer (type Smallint in Delphi, short in C++ ).
+      varInteger  : self.AddPair( AKey,  Integer( AValue ) );       // 32-bit signed integer (type Integer in Delphi, int in C++).
 //      varSingle   : // Single-precision floating-point value (type Single in Delphi, float in C++).
 //      varDouble   : // Double-precision floating-point value (type double).
 //      varCurrency :  // Currency floating-point value (type Currency).
@@ -52,7 +78,7 @@ begin
 //      varOleStr   : // Reference to a dynamically allocated UNICODE string.
 //      varDispatch :  // Reference to an Automation object (an IDispatch interface pointer).
 //      varError    : // Operating system error code.
-      varBoolean  : self.AddPair( AKey,  BoolToStr( Boolean( AValue ), true ) ); // 16-bit boolean (type WordBool).
+      varBoolean  : self.AddPair( X( AKey ),  BoolToStr( Boolean( AValue ), true ) ); // 16-bit boolean (type WordBool).
 //      varVariant  : // A variant.
 //      varUnknown  : // Reference to an unknown object (an IInterface or IUnknown interface pointer).
 //      varShortInt : // 8-bit signed integer (type ShortInt in Delphi or signed char in C++)
@@ -69,17 +95,17 @@ end;
 
 procedure TStringsHelper.AddPair(const AKey, AValue: string);
 begin
-   self.Add( AKey + '=' + AValue );
+   self.Add( X( AKey + '=' + AValue ) );
 end;
 
 procedure TStringsHelper.AddPair(const AKey: string; const AValue: integer);
 begin
-   self.AddPair( AKey, IntToStr( AValue ) );
+   self.AddPair( X( AKey ), IntToStr( AValue ) );
 end;
 
 procedure TStringsHelper.AddPair(const AKey, AFormat: string; const AParam: array of const);
 begin
-   self.AddPair( AKey, Format( AFormat, AParam ) );
+   self.AddPair( X( AKey ), Format( X( AFormat ), AParam ) );
 end;
 
 end.
