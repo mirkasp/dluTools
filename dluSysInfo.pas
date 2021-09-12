@@ -95,6 +95,8 @@ begin
     {$ifdef VER320 } Result := 'Delphi 10.2 Tokyo' {$endif}
     {$ifdef VER330 } Result := 'Delphi 10.3 Rio'   {$endif}
     {$ifdef VER340 } Result := 'Delphi 10.4 Sidney'{$endif}
+    {$ifdef VER350 } Result := 'Delphi 11 Alexandria'{$endif}
+    {$ifdef VER360 } Result := 'Delphi 11.1 Next'{$endif}
 {$endif FPC}
 {$ifdef CPU64} +', 64 bit' {$else} +', 32 bit' {$endif}
 
