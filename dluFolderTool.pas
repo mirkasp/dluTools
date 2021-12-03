@@ -34,7 +34,7 @@ type TuEachFileProc    = reference to procedure( const AIsMatching: boolean; con
 
 type TuFolderTool = class
   strict private
-     type TFileNameArray = array[0..MAX_PATH - 1] of WideChar;
+//     type TFileNameArray = array[0..MAX_PATH - 1] of WideChar;
      var
      fLargeFetch   : boolean;
      fInfoBasic    : boolean;

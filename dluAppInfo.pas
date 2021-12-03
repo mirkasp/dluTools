@@ -3,7 +3,6 @@ unit dluAppInfo;
 {$IFDEF FPC}
   {$mode objfpc}{$H+}
   {$modeswitch UNICODESTRINGS+}
-  //{$modeswitch ADVANCEDRECORDS+}
 {$ELSE}
   {$MESSAGE HINT 'Tested only for LAZARUS!'}
 {$ENDIF}
@@ -23,9 +22,9 @@ implementation
 
 uses dluSysInfo
    , dluFileInfo
-{$IFDEF WINDOWS}
-   , Windows
-{$ENDIF}
+//{$IFDEF WINDOWS}
+//   , Windows
+//{$ENDIF}
 {$IFNDEF FPC}
    , SysUtils
    //, mkSysInfo
