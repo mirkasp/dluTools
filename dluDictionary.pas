@@ -13,9 +13,14 @@ uses Classes;
 
  { TuxDict }
 type
+
+  { IuDictionary }
+
   IuDictionary = interface
-    procedure Add( const AKey: Cardinal; const AValue: string );
-    procedure AddFmt( const AKey: Cardinal; const AValue: string; Params: array of const );
+    procedure Add( const AKey: Cardinal; const AValue: string ); overload;
+    procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
+    //procedure AddFmt( const AKey: Cardinal; const AValue: string; Params: array of const );
+    procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
     function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
     function Value( const AKey: Cardinal ) : string; overload;
     function QuotedValue( const AKey: Cardinal ) : string;
@@ -30,6 +35,7 @@ type
      fKeys         : TList;
      fValues       : TStrings;
      fErrorCaption : string;
+     fRanges       : TStrings;
    public
      constructor Create( const xErrorCaption: string = '' );
      destructor Destroy; override;
@@ -40,8 +46,9 @@ type
      function GetValuesList( const ABitField: UInt64; const AMaxBit: Word = 0 ): TStrings;
      function GetMasksList( const AMask: Cardinal ): TStrings;
      //
-     procedure Add( const AKey: Cardinal; const AValue: string );
-     procedure AddFmt( const AKey: Cardinal; const AValue: string; Params: array of const );
+     procedure Add( const AKey: Cardinal; const AValue: string ); overload;
+     procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
+     procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
      function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
 end;
 
@@ -49,6 +56,13 @@ end;
 implementation
 
 uses SysUtils;
+
+type TDictRange = record
+   KeyFrom : Cardinal;
+   KeyTo   : Cardinal;
+end;
+
+PDictRange = ^TDictRange;
 
 function IsBit( const AValue: UInt64; const ABit: integer ): boolean;
 begin
@@ -61,13 +75,19 @@ constructor TuxDictionary.Create( const xErrorCaption: string) ;
 begin
    inherited Create;
    fErrorCaption := xErrorCaption;
-   if fErrorCaption = '' then fErrorCaption := 'Unknown value for key "%d"';
-   fKeys := TList.Create;
+   if fErrorCaption = '' then fErrorCaption := 'Unknown value for key "%x"';
+   fKeys   := TList.Create;
    fValues := TStringList.Create;
+   fRanges := TStringList.Create;
 end;
 
 destructor TuxDictionary.Destroy;
+  var i: integer;
 begin
+   with fRanges do begin
+      for i:=0 to fRanges.Count-1 do Dispose( PDictRange( Objects[i] ) );
+      Free;
+   end;
    fValues.Free;
    fKeys.Free;
    inherited Destroy;
@@ -119,9 +139,24 @@ begin
    {$ENDIF}
 end;
 
-procedure TuxDictionary.AddFmt( const AKey: Cardinal; const AValue: string; Params: array of const) ;
+procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: string; Params: array of const) ;
 begin
    Add( AKey, Format( AValue, Params ) );
+end;
+
+procedure TuxDictionary.AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string);
+  var pd : PDictRange;
+begin
+   New( pd );
+   pd^.KeyFrom := AKeyFrom;
+   pd^.KeyTo   := AKeyTo;
+
+   {$IFDEF FPC}
+   fRanges.AddObject( UTF8Encode( AValue ), TObject( pd ) );
+   {$ELSE}
+   fRanges.AddObject( AValue, TObject( pd ) );
+   {$ENDIF}
+
 end;
 
 function TuxDictionary.TryLocate( const AKey: Cardinal; out AValue: string ) : boolean;
@@ -129,13 +164,22 @@ function TuxDictionary.TryLocate( const AKey: Cardinal; out AValue: string ) : b
 begin
   n := fKeys.IndexOf( Pointer( AKey ) );
   Result := (n >= 0);
-  if Result then AValue := fValues[ n ];
+  if Result then AValue := fValues[ n ]
+  else begin
+     n := fRanges.Count-1;
+     while n >= 0 do
+        with PDictRange( fRanges.Objects[n] )^ do
+           if (AKey >= KeyFrom) and (AKey <= KeyTo) then break
+           else Dec(n);
+     Result := (n >= 0);
+     if Result then AValue := fRanges[ n ];
+  end;
 end;
 
 function TuxDictionary.Value( const AKey: Cardinal) : string;
 begin
    if not TryLocate( AKey, Result ) then
-     if Pos( '%d', fErrorCaption ) > 0
+     if (Pos( '%x', fErrorCaption ) > 0) or (Pos( '%d', fErrorCaption ) > 0)
         then Result := Format( fErrorCaption, [AKey] )
         else Result := fErrorCaption;
 
