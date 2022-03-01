@@ -262,7 +262,7 @@ type TGetNativeSystemInfo = procedure( var AParam: Windows.TSystemInfo ); stdcal
 type TGetProductInfo = function( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean; stdcall;
 
 function CustomVersionFunc( const ALibrary, AFuncName: string; var AParam: TuOSVersionInfoExW ): boolean;
-  var DLLWnd : THandle;
+  var DLLWnd : THandle = 0;
       xFunc  : pointer;
 begin
    Result := GetWindowsFunction( ALibrary, AFuncName, DllWnd, xFunc );
