@@ -17,7 +17,8 @@ type
   { IuDictionary }
 
   IuDictionary = interface
-    procedure Add( const AKey: Cardinal; const AValue: string ); overload;
+    procedure Add( const AKey: Cardinal; const AValue: AnsiString ); overload;
+    procedure Add( const AKey: Cardinal; const AValue: UnicodeString ); overload;
     procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
     //procedure AddFmt( const AKey: Cardinal; const AValue: string; Params: array of const );
     procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
@@ -46,7 +47,8 @@ type
      function GetValuesList( const ABitField: UInt64; const AMaxBit: Word = 0 ): TStrings;
      function GetMasksList( const AMask: Cardinal ): TStrings;
      //
-     procedure Add( const AKey: Cardinal; const AValue: string ); overload;
+     procedure Add( const AKey: Cardinal; const AValue: AnsiString ); overload;
+     procedure Add( const AKey: Cardinal; const AValue: UnicodeString ); overload;
      procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
      procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
      function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
@@ -129,16 +131,27 @@ begin
    end;
 end;
 
-procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: string) ;
+procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: AnsiString );
 begin
    fKeys.Add( Pointer( AKey ) );
+   fValues.Add( AValue );
+
+   //{$IFDEF FPC}
+   //fValues.Add( UTF8Encode( AValue ) );
+   //{$ELSE}
+   //fValues.Add( AValue );
+   //{$ENDIF}
+end;
+
+procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: UnicodeString );
+begin
    {$IFDEF FPC}
-   fValues.Add( UTF8Encode( AValue ) );
+   self.Add( AKey, AnsiString( UTF8Encode( AValue ) ) );
    {$ELSE}
+   fKeys.Add( Pointer( AKey ) );
    fValues.Add( AValue );
    {$ENDIF}
 end;
-
 procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: string; Params: array of const) ;
 begin
    Add( AKey, Format( AValue, Params ) );
