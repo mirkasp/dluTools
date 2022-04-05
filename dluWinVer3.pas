@@ -40,7 +40,8 @@ type
      fTabletPC             : boolean;
      fSuites               : TStrings;
      fLang                 : WideString;
-     procedure AppendToName( const AText: WideString );
+     procedure AppendToName( const AText: AnsiString ); overload;
+     procedure AppendToName( const AText: WideString ); overload;
      procedure AppendToNameIf( const ACond: boolean; const AText_true, AText_false: WideString );
      procedure Prepare_Win32s_Platform;
      procedure Prepare_Win32_Windows_Platform;
@@ -556,6 +557,11 @@ begin
 
    end;
 
+end;
+
+procedure TWinVerSpec.AppendToName(const AText: AnsiString);
+begin
+  AppendToName( WideString( AText ) );
 end;
 
 procedure TWinVerSpec.AppendToName(const AText: WideString);
