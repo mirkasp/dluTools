@@ -429,7 +429,7 @@ procedure TWinVerSpec.Prepare_Win32_NT_Platform;
       nsi : Windows.TSystemInfo;
       n   : integer;
 begin
-
+   osi := Default( TuOSVersionInfoExW );
    if not GetVersionEx( osi ) then begin
       self.fName := 'Unknown';
       exit;
