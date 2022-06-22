@@ -264,7 +264,7 @@ type TGetProductInfo = function( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVe
 
 function CustomVersionFunc( const ALibrary, AFuncName: string; var AParam: TuOSVersionInfoExW ): boolean;
   var DLLWnd : THandle = 0;
-      xFunc  : pointer;
+      xFunc  : pointer = nil;
 begin
    Result := GetWindowsFunction( ALibrary, AFuncName, DllWnd, xFunc );
    if Result then begin
