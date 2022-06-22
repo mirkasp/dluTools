@@ -10,7 +10,11 @@ uses StdCtrls;
 
 type TLogLineType = ( llSingle, llDouble );
 
-type TAppLog = class
+type
+
+{ TAppLog }
+
+ TAppLog = class
    strict private
      fMemLog     : TMemo;
      fSepLineLen : integer;
@@ -25,8 +29,13 @@ type TAppLog = class
      procedure EndUpdate;
      procedure SkipToEnd;
      procedure LogLine( const ALineType: TLogLineType );
+     //
      procedure Log( const AText: string ); overload;
      procedure Log( const AText: string; const AParam: array of const ); overload;
+     //
+     procedure SimpleLog( const AText: string ); overload;
+     procedure SimpleLog( const AText: string; const AParam: array of const ); overload;
+     //
      procedure SaveToFile( const AFileName: string );
      //
      property MemLog    : TMemo   read fMemLog     write SetMemLog;
@@ -76,12 +85,22 @@ begin
    end;
 end;
 
-procedure TAppLog.Log(const AText: string);
+procedure TAppLog.SimpleLog(const AText: string);
 begin
    if fActive then begin
       if not Assigned( fMemLog ) then raise Exception.Create( cErrorMsg );
       fMemLog.Lines.Add( AText );     //    <// Accessviolation
    end;
+end;
+
+procedure TAppLog.SimpleLog(const AText: string; const AParam: array of const);
+begin
+  SimpleLog( Format( AText, AParam ) );
+end;
+
+procedure TAppLog.Log(const AText: string);
+begin
+  SimpleLog( DateTimeToStr( Now() ) + ': ' + AText );
 end;
 
 procedure TAppLog.Log(const AText: string; const AParam: array of const);
