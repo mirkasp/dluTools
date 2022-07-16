@@ -65,6 +65,10 @@ function GetFileInfo( const AFileName: string = '' ): TFileVersionInfo;
 // alternative version - only for version info
 function GetFileVersion( const AFileName: string = '' ): string;
 
+type TPEType = (pe_unknown, pe_32bit, pe_64bit );
+function GetPEType( const APath: WideString ): TPEType;
+function GetPETypeStr( const APath: WideString ): string;
+
 
 function AttrWin32( const x: Cardinal ): string;
 
@@ -75,6 +79,7 @@ implementation
 
 uses
   ShellApi, Windows
+  , JwaWindows
 {$IFDEF FPC}
   , LCLIntf
   , LCLType
@@ -399,6 +404,64 @@ begin
          else Result := Result + '-';
 end;
 
+
+function GetPEType(const APath: WideString): TPEType;
+  var hFile,
+      hFileMap : THandle;
+      PMapView : Pointer;
+      PIDH     : PImageDosHeader;
+      PINTH    : PImageNtHeaders;
+      Base     : Pointer;
+begin
+   Result := pe_unknown;
+   hFile := CreateFileW( PWideChar(APath), GENERIC_READ, FILE_SHARE_READ, nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0 );
+   if hFile = INVALID_HANDLE_VALUE then begin
+      CloseHandle( hFile );
+      Exit;
+   end;
+
+   hFileMap  := CreateFileMapping( hFile, nil, PAGE_READONLY, 0, 0, nil );
+   if hFileMap = 0 then begin
+      CloseHandle( hFile );
+      CloseHandle( hFileMap );
+      Exit;
+   end;
+
+   PMapView := MapViewOfFile( hFileMap, FILE_MAP_READ, 0, 0, 0 );
+   if PMapView = nil then begin
+      CloseHandle( hFile );
+      CloseHandle( hFileMap );
+      Exit;
+   end;
+
+   PIDH := PImageDosHeader(PMapView);
+   if PIDH^.e_magic <> IMAGE_DOS_SIGNATURE then begin
+      CloseHandle( hFile );
+      CloseHandle( hFileMap );
+      UnmapViewOfFile( PMapView );
+      Exit;
+   end;
+
+   Base  := PIDH;
+   PINTH := PIMAGENTHEADERS( Base + LongWord(PIDH^.e_lfanew) );
+   if PINTH^.Signature = IMAGE_NT_SIGNATURE then begin
+      case PINTH^.OptionalHeader.Magic of
+         $10b: Result := pe_32bit;
+         $20b: Result := pe_64bit;
+      end;
+   end;
+
+   CloseHandle( hFile );
+   CloseHandle( hFileMap );
+   UnmapViewOfFile( PMapView );
+end;
+
+const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
+
+function GetPETypeStr( const APath: WideString ): string;
+begin
+   Result := cPEType[ GetPEType( APath ) ];
+end;
 
 initialization
   FileTypeDict := TuxDictionary.Create( 'Unknown file type value (%d)' );
