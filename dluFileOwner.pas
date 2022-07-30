@@ -11,9 +11,10 @@ interface
 
 uses Classes;
 
-function FileOwner(const FileName: string; out Domain, Owner: string; out RetCode: Cardinal ): boolean; overload;
-function FileOwner(const FileName: string; out Domain, Owner: string): boolean; overload;
-function FileOwner(const FileName: string ): string; overload;
+function FileOwner( const FileName: UnicodeString; out Domain, Owner: UnicodeString; out RetCode: Cardinal ): boolean;
+function FileOwner( const FileName: UnicodeString; out Domain, Owner: UnicodeString): boolean;
+function FileOwner( const FileName: UnicodeString ): UnicodeString; overload;
+function FileOwner( const FileName: AnsiString ): AnsiString; overload;
 
 implementation
 
@@ -151,5 +152,12 @@ begin
    end else
       Result := '';
 end;
+
+
+function FileOwner( const FileName: AnsiString ): AnsiString; overload;
+begin
+   Result := AnsiString( FileOwner( UnicodeString( FileName ) ) );
+end;
+
 
 end.
