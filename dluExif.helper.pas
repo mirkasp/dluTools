@@ -1,4 +1,10 @@
 unit dluExif.helper;
+(*******************************************************************************
+
+  2022.08.16: "late creating" ExifTagDefsEx object
+  2022.07.30: initial version
+
+*******************************************************************************)
 
 {$mode objfpc}{$H+}
 
@@ -51,7 +57,7 @@ uses Classes, SysUtils
    , fpeStrConsts
    ;
 
-var ExifTagDefsEx: TTagDefList;
+var ExifTagDefsEx: TTagDefList = nil;
 
 
 { TuImgInfo }
@@ -227,15 +233,6 @@ begin
    end;
 end;
 
-function GetTagExName(const AId: TTagId; const ADefault: string = ''): string;
-  var tmp : TTagDef;
-begin
-   tmp := ExifTagDefsEx.FindByID( AId );
-   if tmp = nil
-      then Result := ADefault
-      else Result := tmp.Name;
-end;
-
 procedure BuildExifTagDefsEx;
   const P = TAGPARENT_PRIMARY;         // $00010000;
         T = TAGPARENT_THUMBNAIL;       // $00020000;
@@ -249,14 +246,14 @@ begin
      AddULongTag    (P+$00FE, 'SubfileType',               1, '',               rsSubfileTypeLkup, '', nil, true );
      AddULongTag    (P+$0100, 'ImageWidth',                1, rsImageWidth                                       );
      AddULongTag    (T+$0100, 'ThumbnailWidth',            1, rsThumbnailWidth);
-     AddULongTag    (P+$0101, 'ImageHeight',               1, rsImageHeight);  // official: "Image length"
+     AddULongTag    (P+$0101, 'ImageHeight',               1, rsImageHeight);      // official: "Image length"
      AddULongTag    (T+$0101, 'ThumbnailHeight',           1, rsThumbnailHeight);  // official: "Image length"
      AddULongTag    (P+$0101, 'ImageLength',               1, rsImageHeight);
-     AddUShortTag   (T+$0102, 'BitsPerSample',             1, rsBitsPerSample); // MK 2021.0925
+     AddUShortTag   (T+$0102, 'BitsPerSample',             1, rsBitsPerSample);    // MK 2021.0925
      AddUShortTag   (T+$0106, 'PhotometricInterpretation', 1, rsPhotometricInt, rsPhotometricIntLkup); // MK 2021.09.25
-     AddStringTag   (T+$010F, 'Make',                      1, rsMake);     // MK 2021.09.24
-     AddStringTag   (T+$0110, 'Model',                     1, rsModel);    // MK 2021.09.24
-     AddUShortTag   (T+$0115, 'SamplesPerPixel',           1, rsSamplesPerPixel);        // MK 2021.09.25
+     AddStringTag   (T+$010F, 'Make',                      1, rsMake);             // MK 2021.09.24
+     AddStringTag   (T+$0110, 'Model',                     1, rsModel);            // MK 2021.09.24
+     AddUShortTag   (T+$0115, 'SamplesPerPixel',           1, rsSamplesPerPixel);  // MK 2021.09.25
      AddUShortTag   (P+$0140, 'ColorMap',                  2, '' );     // MK 2021.09.24
      AddUShortTag   (P+$0152, 'ExtraSamples',              1, '' );     // MK 2021.09.24
      AddULongTag    (E+$0201, 'ThumbnailOffset',           1, rsThumbnailOffset, '', '', TOffsetTag);
@@ -323,15 +320,29 @@ begin
 
    end;
 
-
 end;
 
-initialization
-  ExifTagDefsEx := TTagDefList.Create();
-  BuildExifTagDefsEx();
+function GetTagExName(const AId: TTagId; const ADefault: string = ''): string;
+  var tmp : TTagDef;
+begin
+   if ExifTagDefsEx = nil then begin
+      ExifTagDefsEx := TTagDefList.Create();
+      BuildExifTagDefsEx();
+   end;
+
+   tmp := ExifTagDefsEx.FindByID( AId );
+   if tmp = nil
+      then Result := ADefault
+      else Result := tmp.Name;
+end;
+
+
+//initialization
+  //ExifTagDefsEx := TTagDefList.Create();
+  //BuildExifTagDefsEx();
 
 finalization
-   FreeAndNil( ExifTagDefsEx );
+   if ExifTagDefsEx <> nil then ExifTagDefsEx.Free;
 
 end.
 
