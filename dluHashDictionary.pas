@@ -1,5 +1,10 @@
 unit dluHashDictionary;
+(*******************************************************************************
+  dluHashDictionary - based on hash table general dictionary module.
 
+  2022-08-21 add AValueDup parameter in Indert procedure
+  2022-08-20 initial version
+********************************************************************************)
 {$mode ObjFPC}{$H+}
 {$WARN 6058 off : Call to subroutine "$1" marked as inline is not inlined}
 
@@ -8,7 +13,7 @@ interface
 type generic TKeyArray<K> = array of K;
 
 type generic IDictionary<K, V> = interface
-   procedure Insert( const Key: K; const Value: V );
+   procedure Insert( const Key: K; const Value: V; const AValueDup: boolean );
    function GetFirstValueForKey( const Key: K; var Value: V ): boolean;
    function GetNextValueForKey( var Value: V ): boolean;
    function Keys(): specialize TKeyArray<K>;
@@ -48,7 +53,7 @@ type generic THashDictionary<K, V> = class( TInterfacedObject, specialize IDicti
     constructor Create( AKeyEqualFunc: TKeyEqualFunc; AValueEqualFunc: TValueEqualFunc; AHashFunc: THashFunc ); virtual;
     destructor Destroy; override;
     //
-    procedure Insert( const AKey: K; const AValue: V );
+    procedure Insert( const AKey: K; const AValue: V; const AValueDup: boolean = false );
     //
     function GetFirstValueForKey( const AKey: K; var Value: V ): boolean;
     function GetNextValueForKey( var Value: V ): boolean;
@@ -98,7 +103,7 @@ begin
          else Result := Result^.Next;
 end;
 
-procedure THashDictionary.Insert( const AKey: K; const AValue: V);
+procedure THashDictionary.Insert( const AKey: K; const AValue: V; const AValueDup: boolean);
   var px      : THashIndex;
       itemPtr : PValueItem;
       kI, i   : integer;
@@ -128,7 +133,7 @@ begin
          then break
          else Dec(i);
 
-   if i < 0 then begin
+   if (i < 0) or AValueDup then begin
       SetLength( itemPtr^.Values, kI + 1 );
       itemPtr^.Values[ kI ] := AValue;
    end;
@@ -162,7 +167,8 @@ function THashDictionary.Keys: specialize TKeyArray<K>;
       px  : PValueItem;
       cnt : integer;
 begin
-   cnt := 0;
+   Result := nil;
+   cnt    := 0;
    for idx := Low( fHashTable ) to High( fHashTable ) do begin
       px := fHashTable[ idx ];
       while Assigned( px ) do begin
