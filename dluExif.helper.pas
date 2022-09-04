@@ -45,9 +45,10 @@ TuExifDataEx = class helper for TExifData
 end;
 
 
-function GetTagExName( const AId  : TTagId; const ADefault: string = '' ): string;
+function GetExTagName( const AId  : TTagId; const ADefault: string = '' ): string;
+function GetExTags(): TTagDefList;
 
-function GetTagExInfo( const ATag: TTag ): string;
+function GetExTagInfo( const ATag: TTag ): string;
 function ParentAsString( const APrim: Word ): string;
 
 implementation
@@ -197,7 +198,7 @@ begin
       else Result := tx.AsString;
 end;
 
-function GetTagExInfo( const ATag: TTag) : string;
+function GetExTagInfo( const ATag: TTag) : string;
   var _tagType : string;
       _tagGroup : string;
 
@@ -241,26 +242,18 @@ procedure BuildExifTagDefsEx;
         I = TAGPARENT_INTEROP;         // $A0050000;
 begin
    with ExifTagDefsEx do begin
-     AddStringTag   (I+$0001, 'InterOpIndex',              1, rsInterOpIndex                       );
-     AddBinaryTag   (I+$0002, 'InterOpVersion',            1, rsInterOpVersion, '', '', TVersionTag);
-     AddULongTag    (P+$00FE, 'SubfileType',               1, '',               rsSubfileTypeLkup, '', nil, true );
-     AddULongTag    (P+$0100, 'ImageWidth',                1, rsImageWidth                                       );
-     AddULongTag    (T+$0100, 'ThumbnailWidth',            1, rsThumbnailWidth);
-     AddULongTag    (P+$0101, 'ImageHeight',               1, rsImageHeight);      // official: "Image length"
-     AddULongTag    (T+$0101, 'ThumbnailHeight',           1, rsThumbnailHeight);  // official: "Image length"
-     AddULongTag    (P+$0101, 'ImageLength',               1, rsImageHeight);
      AddUShortTag   (T+$0102, 'BitsPerSample',             1, rsBitsPerSample);    // MK 2021.0925
      AddUShortTag   (T+$0106, 'PhotometricInterpretation', 1, rsPhotometricInt, rsPhotometricIntLkup); // MK 2021.09.25
      AddStringTag   (T+$010F, 'Make',                      1, rsMake);             // MK 2021.09.24
      AddStringTag   (T+$0110, 'Model',                     1, rsModel);            // MK 2021.09.24
      AddUShortTag   (T+$0115, 'SamplesPerPixel',           1, rsSamplesPerPixel);  // MK 2021.09.25
-     AddUShortTag   (P+$0140, 'ColorMap',                  2, '' );     // MK 2021.09.24
-     AddUShortTag   (P+$0152, 'ExtraSamples',              1, '' );     // MK 2021.09.24
+     AddUShortTag   (P+$0140, 'ColorMap',                  2, '' );                // MK 2021.09.24
+     AddUShortTag   (P+$0152, 'ExtraSamples',              1, '' );                // MK 2021.09.24
      AddULongTag    (E+$0201, 'ThumbnailOffset',           1, rsThumbnailOffset, '', '', TOffsetTag);
      AddULongTag    (E+$0202, 'ThumbnailSize',             1, rsThumbnailSize);
      AddStringTag   (P+$02BC, 'ExtensibleMetadataPlatform',1, rsExtensibleMetadataPlatform);
      AddURationalTag(P+$0301, 'Gamma',                     1, '' );   // MK 2021.09.25
-     AddUShortTag   (P+$0303, 'SRGBRenderingIntent' );  // MK 2021.09.25
+     AddUShortTag   (P+$0303, 'SRGBRenderingIntent',       1, '' );  // MK 2021.09.25
      AddUShortTag   (P+$1001, 'RelatedImageWidth',         1, rsRelatedImageWidth);    // MK 2021.09.25
      AddUShortTag   (P+$1002, 'RelatedImageHeight',        1, rsRelatedImageHeight);   // MK 2021.09.25
      AddUShortTag   (P+$4746, 'Rating',                    1, 'Rating' );              // MK 2021.09.24
@@ -287,12 +280,13 @@ begin
      AddUShortTag(   P+$84EB, 'PixelIntensityRange'      );
      AddUShortTag(   P+$84EC, 'TransparencyIndicator'    );
      AddULongTag(    P+$84ED, 'ColorCharacterization'    );
-     AddULongTag(    P+$84EE, 'HCUsage', 1, 'HCUsage',
+     AddULongTag(    P+$84EE, 'HCUsage',       1, 'HCUsage',
                               '0=CT;1=Line Art;2=Trap'   );
      AddULongTag(    P+$84EF, 'TrapIndicator'            );
      AddBinaryTag   (P+$8773, 'InterColorProfile',         1, '');                 // MK 2021.09.24
      AddUShortTag   (P+$8830, 'SensitivityType',           1, rsSensitivityType, rsSensitivityTypeLkup);  // MK 2021.09.24
      AddULongTag    (E+$8832, 'RecommendedExposureIndex',  1, rsRecExpIndex );
+     AddUShortTag   (I+$9209, 'Flash',                     1, rsFlash, rsFlashLkup);
      AddUShortTag   (E+$920B, 'FlashEnergy',               1 );
      AddUShortTag   (E+$920C, 'SpatialFrequencyResponse',  1 );                                              // MK 2021.09.25
      AddUShortTag   (E+$920D, 'Noise',                     1 );                                              // MK 2021.09.25
@@ -304,6 +298,7 @@ begin
                        '3=cm'
                     );
      AddUShortTag   (P+$9214, 'SubjectArea',               4, rsSubjectArea);
+     AddUShortTag   (P+$A002, 'ExifImageWidth',            1, rsExifImageWidth);
      AddUShortTag   (P+$A401, 'CustomRendered',            1, rsCustomRendered, rsCustomRenderedLkup);       // MK 2021.09.25
      AddUShortTag   (P+$A402, 'ExposureMode',              1, rsExposureMode, rsExposureModeLkup);           // MK 2021.09.25
      AddUShortTag   (P+$A403, 'WhiteBalance',              1, rsWhiteBalance, rsAutoManual);                 // MK 2021.09.25
@@ -322,7 +317,7 @@ begin
 
 end;
 
-function GetTagExName(const AId: TTagId; const ADefault: string = ''): string;
+function GetExTagName(const AId: TTagId; const ADefault: string = ''): string;
   var tmp : TTagDef;
 begin
    if ExifTagDefsEx = nil then begin
@@ -336,10 +331,17 @@ begin
       else Result := tmp.Name;
 end;
 
+function GetExTags: TTagDefList;
+begin
+   if ExifTagDefsEx = nil then begin
+      ExifTagDefsEx := TTagDefList.Create();
+      BuildExifTagDefsEx();
+   end;
 
-//initialization
-  //ExifTagDefsEx := TTagDefList.Create();
-  //BuildExifTagDefsEx();
+   Result := ExifTagDefsEx;
+
+end;
+
 
 finalization
    if ExifTagDefsEx <> nil then ExifTagDefsEx.Free;
