@@ -238,7 +238,7 @@ procedure BuildExifTagDefsEx;
   const P = TAGPARENT_PRIMARY;         // $00010000;
         T = TAGPARENT_THUMBNAIL;       // $00020000;
         E = TAGPARENT_EXIF;            // $87690000;
-        G = TAGPARENT_GPS;             // $88250000;
+        //G = TAGPARENT_GPS;             // $88250000;
         I = TAGPARENT_INTEROP;         // $A0050000;
 begin
    with ExifTagDefsEx do begin
