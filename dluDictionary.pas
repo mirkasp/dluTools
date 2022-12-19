@@ -20,7 +20,9 @@ type
     procedure Add( const AKey: Cardinal; const AValue: AnsiString ); overload;
     procedure Add( const AKey: Cardinal; const AValue: UnicodeString ); overload;
     procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
-    //procedure AddFmt( const AKey: Cardinal; const AValue: string; Params: array of const );
+    //
+    procedure Add( const AKeyStr: string; const AValue: AnsiString ); overload;
+    //
     procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
     function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
     function Value( const AKey: Cardinal ) : string; overload;
@@ -50,9 +52,14 @@ type
      procedure Add( const AKey: Cardinal; const AValue: AnsiString ); overload;
      procedure Add( const AKey: Cardinal; const AValue: UnicodeString ); overload;
      procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
+     //
+     procedure Add( const AKeyStr: string; const AValue: AnsiString ); overload;
+     //
      procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
      function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
 end;
+
+function StrToCardinal( const AStr: AnsiString ): Cardinal;
 
 
 implementation
@@ -65,6 +72,14 @@ type TDictRange = record
 end;
 
 PDictRange = ^TDictRange;
+
+
+function StrToCardinal( const AStr: AnsiString ): Cardinal;
+  var s : packed array[0..3] of AnsiChar;
+begin
+  s := Copy( AStr + #0#0#0#0, 1, 4 );
+  Result := BEToN( Cardinal( s ) );
+end;
 
 function IsBit( const AValue: UInt64; const ABit: integer ): boolean;
 begin
@@ -135,12 +150,6 @@ procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: AnsiString );
 begin
    fKeys.Add( Pointer( AKey ) );
    fValues.Add( AValue );
-
-   //{$IFDEF FPC}
-   //fValues.Add( UTF8Encode( AValue ) );
-   //{$ELSE}
-   //fValues.Add( AValue );
-   //{$ENDIF}
 end;
 
 procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: UnicodeString );
@@ -155,6 +164,12 @@ end;
 procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: string; Params: array of const) ;
 begin
    Add( AKey, Format( AValue, Params ) );
+end;
+
+procedure TuxDictionary.Add(const AKeyStr: string; const AValue: AnsiString);
+begin
+   fKeys.Add( Pointer( StrToCardinal( AKeyStr ) ) );
+   fValues.Add( AValue );
 end;
 
 procedure TuxDictionary.AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string);
