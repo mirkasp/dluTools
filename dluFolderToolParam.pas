@@ -34,7 +34,7 @@ type
         fMasterSem         : boolean;    // czy jest zdefiniowany jakikolwiek filtr ?
         //
         fFileNameMask      : string;
-        fMaskTabStr        : TStrDynArray;
+        fMaskTabStr        : TUnicodeStringDynArray;
         fIsMatchingFunc    : TIsMatchingFunc;
         // technical
         fFreeonRelease     : boolean;
