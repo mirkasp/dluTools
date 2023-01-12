@@ -242,6 +242,7 @@ procedure BuildExifTagDefsEx;
         I = TAGPARENT_INTEROP;         // $A0050000;
 begin
    with ExifTagDefsEx do begin
+     AddStringTag   (P+$000B, 'ProcessingSoftware',        1, 'Processing Software' );             // MK 2022.01.12
      AddUShortTag   (T+$0102, 'BitsPerSample',             1, rsBitsPerSample);    // MK 2021.0925
      AddUShortTag   (T+$0106, 'PhotometricInterpretation', 1, rsPhotometricInt, rsPhotometricIntLkup); // MK 2021.09.25
      AddStringTag   (T+$010F, 'Make',                      1, rsMake);             // MK 2021.09.24
@@ -254,11 +255,11 @@ begin
      AddStringTag   (P+$02BC, 'ExtensibleMetadataPlatform',1, rsExtensibleMetadataPlatform);
      AddURationalTag(P+$0301, 'Gamma',                     1, '' );   // MK 2021.09.25
      AddUShortTag   (P+$0303, 'SRGBRenderingIntent',       1, '' );  // MK 2021.09.25
-     AddUShortTag   (P+$1001, 'RelatedImageWidth',         1, rsRelatedImageWidth);    // MK 2021.09.25
-     AddUShortTag   (P+$1002, 'RelatedImageHeight',        1, rsRelatedImageHeight);   // MK 2021.09.25
-     AddUShortTag   (P+$4746, 'Rating',                    1, 'Rating' );              // MK 2021.09.24
-     AddUShortTag   (P+$4749, 'RatingPercent',             1, 'Rating percent' );      // MK 2021.09.24
-     AddUShortTag   (P+$5100, 'FrameDelay'    );   // MK 2021.09.26
+     AddUShortTag   (P+$1001, 'RelatedImageWidth',         1, rsRelatedImageWidth  );   // MK 2021.09.25
+     AddUShortTag   (P+$1002, 'RelatedImageHeight',        1, rsRelatedImageHeight );   // MK 2021.09.25
+     AddUShortTag   (P+$4746, 'Rating',                    1, 'Rating'             );   // MK 2021.09.24
+     AddUShortTag   (P+$4749, 'RatingPercent',             1, 'Rating percent'     );   // MK 2021.09.24
+     AddUShortTag   (P+$5100, 'FrameDelay',                1, 'Frame delay'        );   // MK 2021.09.26
      AddUShortTag   (P+$5110, 'PixelUnit'     );   // MK 2021.09.24
      AddULongTag    (P+$5111, 'PixelPerUnitX' );   // MK 2021.09.24
      AddULongTag    (P+$5112, 'PixelPerUnitY' );   // MK 2021.09.24
