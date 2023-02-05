@@ -2,7 +2,6 @@
 
 {$IFDEF FPC}
   {$mode objfpc}{$H+}
-  //{$modeswitch ADVANCEDRECORDS}
 {$ELSE}
   {$MESSAGE HINT 'Tested only for LAZARUS!'}
 {$ENDIF}
@@ -23,6 +22,8 @@ type
 
  TWinVerSpec = class
    strict private
+     fAllProperties        : TStrings;
+     //
      fName                 : WideString;
      fTechnicalInfo        : WideString;
      fPlatformId           : Cardinal;
@@ -40,19 +41,37 @@ type
      fTabletPC             : boolean;
      fSuites               : TStrings;
      fLang                 : WideString;
+     //
+     fBuildLab           : string;        // TRegistry_ReadString(Reg, 'BuildLab');
+     fBuildLabEx         : string;        // TRegistry_ReadString(Reg, 'BuildLabEx');
+     fCSDBuildNumber     : string;        // TRegistry_ReadString(Reg, 'CSDBuildNumber');
+     fCSDVersionReg      : string;        // TRegistry_ReadString(Reg, 'CSDVersion');
+     fCurrentBuildNumber : string;        // TRegistry_ReadString(Reg, 'CurrentBuildNumber');
+     fCurrentVersion     : string;        // TRegistry_ReadString(Reg, 'CurrentVersion');
+     fEditionId          : string;        // TRegistry_ReadString(Reg, 'EditionId');
+     fProductName        : string;        // TRegistry_ReadString(Reg, 'ProductName');
+     fReleaseId          : string;        // TRegistry_ReadString(Reg, 'ReleaseId');
+     fUBR                : integer;       // TRegistry_ReadInteger(Reg, 'UBR');
+     fInstallDate        : TDateTime;
+
      procedure AppendToName( const AText: AnsiString ); overload;
      procedure AppendToName( const AText: WideString ); overload;
      procedure AppendToNameIf( const ACond: boolean; const AText_true, AText_false: WideString );
      procedure Prepare_Win32s_Platform;
      procedure Prepare_Win32_Windows_Platform;
      procedure Prepare_Win32_NT_Platform;
-    function GetCompilationInfo: WideString;
+     procedure TryReadFromRegistry;
+     function GetCompilationInfo: WideString;
    public
      constructor Create;
      destructor Destroy; override;
-     property Name                 : WideString read fName;
+     //
+     property AllProperties        : TStrings   read fAllProperties;
+     //
      property TechnicalInfo        : WideString read fTechnicalInfo;
      property CompilationInfo      : WideString read GetCompilationInfo;
+     //
+     property Name                 : WideString read fName;
      property PlatformId           : Cardinal   read fPlatformId;
      property MajorVersion         : Cardinal   read fMajorVersion;
      property MinorVersion         : Cardinal   read fMinorVersion;
@@ -68,6 +87,19 @@ type
      property TabletPC             : boolean    read fTabletPC;
      property Suites               : TStrings   read fSuites;
      property Lang                 : WideString read fLang;
+     //
+     property BuildLab             : string     read fBuildLab;
+     property BuildLabEx           : string     read fBuildLabEx;
+     property CSDBuildNumber       : string     read fCSDBuildNumber;
+     property CSDVersionReg        : string     read fCSDVersionReg;
+     property CurrentBuildNumber   : string     read fCurrentBuildNumber;
+     property CurrentVersion       : string     read fCurrentVersion;
+     property EditionId            : string     read fEditionId;
+     property ProductName          : string     read fProductName;
+     property ReleaseId            : string     read fReleaseId;
+     property UBR                  : integer    read fUBR;
+     property InstallDate          : TDateTime  read fInstallDate;
+
 end;
 
 
@@ -245,18 +277,18 @@ type ULONG  = DWord;
 type TWCharArray128 = array[ 0.. 127] of WideChar;
 
 type TuOSVersionInfoExW = packed record
-     dwOSVersionInfoSize: ULONG;
-     dwMajorVersion     : ULONG;
-     dwMinorVersion     : ULONG;
-     dwBuildNumber      : ULONG;
-     dwPlatformId       : ULONG;
-     szCSDVersion       : TWCharArray128;
-     wServicePackMajor  : USHORT;
-     wServicePackMinor  : USHORT;
-     wSuiteMask         : USHORT;
-     wProductType       : UCHAR;
-     wReserved          : UCHAR;
-   end;
+   dwOSVersionInfoSize: ULONG;
+   dwMajorVersion     : ULONG;
+   dwMinorVersion     : ULONG;
+   dwBuildNumber      : ULONG;
+   dwPlatformId       : ULONG;
+   szCSDVersion       : TWCharArray128;
+   wServicePackMajor  : USHORT;
+   wServicePackMinor  : USHORT;
+   wSuiteMask         : USHORT;
+   wProductType       : UCHAR;
+   wReserved          : UCHAR;
+end;
 
 type TGetVersionFunc = function( var AParam:TuOSVersionInfoExW ): Boolean; stdcall;
 type TGetNativeSystemInfo = procedure( var AParam: Windows.TSystemInfo ); stdcall;
@@ -345,6 +377,7 @@ begin
      end;
 end;
 
+
 //function GetArchitectureAsText( const AProcessorArchitecture: Word ): WideString;
 //begin
 //   case AProcessorArchitecture of
@@ -396,28 +429,65 @@ begin
    fLang         := GetLocaleInformation( LOCALE_SABBREVCTRYNAME );
    AppendToName( fLang );
 
-   fTechnicalInfo:= {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d, platform=%d, csd="%s", SP=%d.%d, suite=0x%s, product_type=%d, product_info=%d, lang="%s"',
-                                  [ fMajorVersion, fMinorVersion, fBuildNumber, fPlatformId,
-                                    fCSDVersion, fServicePackMajor, fServicePackMinor,
-                                    IntToHex( fSuiteMask, 2*SizeOf(fSuitemask) ), fProductType, fProductInfo, fLang ] );
+   //fTechnicalInfo:= {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d, platform=%d, csd="%s", SP=%d.%d, suite=0x%s, product_type=%d, product_info=%d, lang="%s"',
+   //                               [ fMajorVersion, fMinorVersion, fBuildNumber, fPlatformId,
+   //                                 fCSDVersion, fServicePackMajor, fServicePackMinor,
+   //                                 IntToHex( fSuiteMask, 2*SizeOf(fSuitemask) ), fProductType, fProductInfo, fLang ] );
 
    fTechnicalInfo:= {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d, platform=%d, csd="%s", SP=%d.%d, suite=0x%s, product_type=%d, product_info=%d, lang="%s"',
                                   [ fMajorVersion, fMinorVersion, fBuildNumber, fPlatformId,
                                     fCSDVersion, fServicePackMajor, fServicePackMinor,
                                     IntToHex( fSuiteMask, 2*SizeOf(fSuitemask) ), fProductType, fProductInfo, fLang ] );
 
+
+   fAllProperties:= TStringList.Create;
+   with fAllProperties do begin
+      BeginUpdate;
+      AddPair( 'PlatformId',             IntToStr( fPlatformId ) );
+      AddPair( 'MajorVersion',           IntToStr( fMajorVersion ) );
+      AddPair( 'MinorVersion',           IntToStr( fMinorVersion ) );
+      AddPair( 'BuildNumber',            IntToStr( fBuildNumber ) );
+      AddPair( 'CSDVersion',             UTF8Encode( fCSDVersion ) );
+      AddPair( 'ServicePackMajor',       IntToStr( fServicePackMajor ) );
+      AddPair( 'ServicePackMinor',       IntToStr( fServicePackMinor ) );
+      AddPair( 'SuiteMask',              IntToStr( fSuiteMask ) );
+      AddPair( 'ProcessorArchitecture',  IntToStr( fProcessorArchitecture ) );
+      AddPair( 'ProductType',            IntToStr( fProductType ) );
+      AddPair( 'ProductInfo',            IntToStr( fProductInfo) );
+      AddPair( 'MediaCenter',            IntToStr( Integer( fMediaCenter )));
+      AddPair( 'TabletPC',               IntToStr( Integer( fTabletPC )) );
+      AddPair( 'Suites',                 fSuites.Text );
+      AddPair( 'Lang',                   UTF8Encode( fLang ) );
+      AddPair( 'Reg.BuildLab',           fBuildLab           );
+      AddPair( 'Reg.BuildLabEx',         fBuildLabEx         );
+      AddPair( 'Reg.CSDBuildNumber',     fCSDBuildNumber     );
+      AddPair( 'Reg.CSDVersion',         fCSDVersionReg      );
+      AddPair( 'Reg.CurrentBuildNumber', fCurrentBuildNumber );
+      AddPair( 'Reg.CurrentVersion',     fCurrentVersion );
+      AddPair( 'Reg.EditionId',          fEditionId );
+      AddPair( 'Reg.ProductName',        fProductName );
+      AddPair( 'Reg.ReleaseId',          fReleaseId );
+      AddPair( 'Reg.UBR',                IntToStr( fUBR ) );
+      AddPair( 'Reg.InstallDate',        DateTimeToStr( fInstallDate ) );
+      EndUpdate;
+    end;
 end;
 
 destructor TWinVerSpec.Destroy;
 begin
+   fAllProperties.Free;
    if Assigned( fSuites ) then fSuites.Free;
    inherited Destroy;
 end;
 
 
 function TWinVerSpec.GetCompilationInfo: WideString;
+  var s : string;
 begin
-   Result := Trim( {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d %s', [ fMajorVersion, fMinorVersion, fBuildNumber, fCSDVersion ] ) );
+   s := '';
+   if fUBR > 0 then s := '.' + IntToStr(fUbr);
+   Result := Trim( {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d%s %s',
+                   [ fMajorVersion, fMinorVersion, fBuildNumber, s, fCSDVersion ] ) );
 end;
 
 {
@@ -513,10 +583,21 @@ begin
 
    if fMajorVersion = 10 then begin
 
-      case fMinorVersion of
-         0 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '10', 'Server 2016' );
-        else fName := UnknownSystem( 'Unknown Windows version', osi );
-      end;
+      TryReadFromRegistry( );
+
+      // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
+      if fMinorVersion = 0 then begin
+         if fProductType = VER_NT_WORKSTATION
+            then AppendToNameIf( fBuildNumber >=22000, '11', '10' )
+            else AppendToName( 'Server 2016' );
+      end else
+         fName := UnknownSystem( 'Unknown Windows version', osi );
+
+
+      //case fMinorVersion of
+      //   0 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '10', 'Server 2016' );
+      //  else fName := UnknownSystem( 'Unknown Windows version', osi );
+      //end;
 
    end;
 
@@ -557,6 +638,30 @@ begin
 
    end;
 
+end;
+
+procedure TWinVerSpec.TryReadFromRegistry;
+  const cNoSecsInDay  = 86400;
+begin
+   // We need to read the real registry, not the 32 bit view, because some of the entries
+   // don't exist there.
+   with TRegistry.Create( KEY_READ or KEY_WOW64_64KEY ) do begin
+      RootKey := HKEY_LOCAL_MACHINE;
+      if OpenKeyReadOnly( 'SOFTWARE\Microsoft\Windows NT\CurrentVersion' ) then begin
+         fBuildLab           := ReadString( 'BuildLab'           );
+         fBuildLabEx         := ReadString( 'BuildLabEx'         );
+         fCSDBuildNumber     := ReadString( 'CSDBuildNumber'     );
+         fCSDVersionReg      := ReadString( 'CSDVersion'         );
+         fCurrentBuildNumber := ReadString( 'CurrentBuildNumber' );
+         fCurrentVersion     := ReadString( 'CurrentVersion'     );
+         fEditionId          := ReadString( 'EditionId'          );
+         fProductName        := ReadString( 'ProductName'        );
+         fReleaseId          := ReadString( 'ReleaseId'          );
+         fUBR                := ReadInteger( 'UBR'               );
+         fInstallDate        := EncodeDate( 1970, 1, 1 ) + ReadInteger( 'InstallDate' ) / cNoSecsInDay;
+      end;
+      Free;
+   end;
 end;
 
 procedure TWinVerSpec.AppendToName(const AText: AnsiString);
