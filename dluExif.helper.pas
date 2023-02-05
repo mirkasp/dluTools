@@ -257,8 +257,8 @@ begin
      AddUShortTag   (P+$0303, 'SRGBRenderingIntent',       1, '' );  // MK 2021.09.25
      AddUShortTag   (P+$1001, 'RelatedImageWidth',         1, rsRelatedImageWidth  );   // MK 2021.09.25
      AddUShortTag   (P+$1002, 'RelatedImageHeight',        1, rsRelatedImageHeight );   // MK 2021.09.25
-     AddUShortTag   (P+$4746, 'Rating',                    1, 'Rating'             );   // MK 2021.09.24
-     AddUShortTag   (P+$4749, 'RatingPercent',             1, 'Rating percent'     );   // MK 2021.09.24
+//.     AddUShortTag   (P+$4746, 'Rating',                    1, 'Rating'             );   // MK 2021.09.24, deleted 2023.01.13
+//.     AddUShortTag   (P+$4749, 'RatingPercent',             1, 'Rating percent'     );   // MK 2021.09.24, deleted 2023.01.13
      AddUShortTag   (P+$5100, 'FrameDelay',                1, 'Frame delay'        );   // MK 2021.09.26
      AddUShortTag   (P+$5110, 'PixelUnit'     );   // MK 2021.09.24
      AddULongTag    (P+$5111, 'PixelPerUnitX' );   // MK 2021.09.24
