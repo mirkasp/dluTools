@@ -1935,7 +1935,7 @@ function PKCS7_ctrl; external LIBEAY_DLL_NAME;
 
 function PKCS7_get_detached(p7: pPKCS7): pointer;
 begin
-result := pointer(PKCS7_ctrl(p7, 2, 0, nil));
+   result := {%H-}pointer(PKCS7_ctrl(p7, 2, 0, nil));
 end;
 
 function PKCS7_dataInit; external LIBEAY_DLL_NAME;
