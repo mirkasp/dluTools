@@ -32,7 +32,7 @@ type TDynStringArray = array of string;
      procedure ListBox1Resize( Sender: TObject) ;
      procedure ListBoxExit( Sender: TObject);
      procedure ListBoxKeyPress( Sender: TObject; var Key: char) ;
-     procedure ListBoxDrawItem( Control: TWinControl; Index: Integer; ARect: TRect; State: TOwnerDrawState) ;
+     procedure ListBoxDrawItem( {%H-}Control: TWinControl; Index: Integer; ARect: TRect; {%H-}State: TOwnerDrawState) ;
    public
      constructor Create( AEditButton: TEditButton; const AColWidth: array of const; const AColValue: TDynStringArray ); overload;
      constructor Create( AEditButton: TEditButton; const AColWidth: array of const; AColValue: TStrings ); overload;
@@ -66,8 +66,9 @@ end;
 function TMultiColsComboBox.StringsToArray(const AStrings: TStrings ): TDynStringArray;
   var i: integer;
 begin
-  SetLength( Result, AStrings.Count );
-  for i:=0 to High( Result ) do Result[ i ] := AStrings[ i ];
+   Result := nil;
+   SetLength( Result, AStrings.Count );
+   for i:=0 to High( Result ) do Result[ i ] := AStrings[ i ];
 end;
 
 procedure TMultiColsComboBox.InitializePseudoCombo( AEditButton: TEditButton;
