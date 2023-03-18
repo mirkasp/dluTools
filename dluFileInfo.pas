@@ -66,6 +66,8 @@ function GetFileInfo( const AFileName: string = '' ): TFileVersionInfo;
 function GetFileVersion( const AFileName: string = '' ): string;
 
 type TPEType = (pe_unknown, pe_32bit, pe_64bit );
+const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
+
 function GetPEType( const APath: WideString ): TPEType;
 function GetPETypeStr( const APath: WideString ): string;
 
@@ -455,8 +457,6 @@ begin
    CloseHandle( hFileMap );
    UnmapViewOfFile( PMapView );
 end;
-
-const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
 
 function GetPETypeStr( const APath: WideString ): string;
 begin
