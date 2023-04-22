@@ -88,11 +88,12 @@ function ShowWinAbout( hwndOwner       : HWND;
 //--------------------------------------------------//
 
 function OpenRecycleBin: Boolean;
-  var recycleBinPIDL : PItemIDList;
+  var recycleBinPIDL : PItemIDList = nil;
       exInfo         : TAPP_ShellExecuteInfo;
 begin
    SHGetSpecialFolderLocation( 0, CSIDL_BITBUCKET, recycleBinPIDL ) ;
-   FillChar( exInfo, SizeOf(exInfo), 0 );
+   exInfo := Default( TAPP_ShellExecuteInfo );
+   //FillChar( exInfo, SizeOf(exInfo), 0 );
    with exInfo do begin
      cbSize   := Sizeof( exInfo );
      fMask    := SEE_MASK_IDLIST;
