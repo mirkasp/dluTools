@@ -37,7 +37,7 @@ end;
 
 function TListBoxHelper.GetSelectedItem: string;
 begin
-   Result := self.Items[ GetSelectedItemIndex() ];
+   Result := UnicodeString(self.Items[ GetSelectedItemIndex() ]);
 end;
 
 function TListBoxHelper.GetSelectedItemObj: TObject;
@@ -47,7 +47,7 @@ end;
 
 procedure TListBoxHelper.SetSelectedItems(const Value: string);
 begin
-   self.Items[ GetSelectedItemIndex() ] := Value;
+   self.Items[ GetSelectedItemIndex() ] := AnsiString(Value);
 end;
 
 procedure TListBoxHelper.IncItemIndex;
