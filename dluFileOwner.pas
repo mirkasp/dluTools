@@ -49,7 +49,7 @@ function GetFileOwner( const FileName: string; out Domain, Owner: string; out Re
       cchDomain    : DWORD;
       cchName      : DWORD;
       wName        : String = '';
-      wDomain      : String;
+      wDomain      : String = '';
 
 begin
     Result := false;

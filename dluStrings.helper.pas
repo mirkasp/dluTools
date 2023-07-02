@@ -69,8 +69,8 @@ begin
    case vt of
       varEmpty    : self.AddPair( AKey,  'Value: Unassigned' );     // The variant is Unassigned.
       varNull     : self.AddPair( AKey,  'Value: NULL' );           // The variant is Null.
-      varSmallint : self.AddPair( AKey,  Integer( AValue ) );       // 16-bit signed integer (type Smallint in Delphi, short in C++ ).
-      varInteger  : self.AddPair( AKey,  Integer( AValue ) );       // 32-bit signed integer (type Integer in Delphi, int in C++).
+      varSmallint : self.AddPair( AKey,  Integer( AValue ) {%H-});       // 16-bit signed integer (type Smallint in Delphi, short in C++ ).
+      varInteger  : self.AddPair( AKey,  Integer( AValue ) {%H-});       // 32-bit signed integer (type Integer in Delphi, int in C++).
 //      varSingle   : // Single-precision floating-point value (type Single in Delphi, float in C++).
 //      varDouble   : // Double-precision floating-point value (type double).
 //      varCurrency :  // Currency floating-point value (type Currency).
@@ -78,7 +78,7 @@ begin
 //      varOleStr   : // Reference to a dynamically allocated UNICODE string.
 //      varDispatch :  // Reference to an Automation object (an IDispatch interface pointer).
 //      varError    : // Operating system error code.
-      varBoolean  : self.AddPair( X( AKey ),  BoolToStr( Boolean( AValue ), true ) ); // 16-bit boolean (type WordBool).
+      varBoolean  : self.AddPair( X( AKey ),  BoolToStr( Boolean( AValue ){%H-}, true ) ); // 16-bit boolean (type WordBool).
 //      varVariant  : // A variant.
 //      varUnknown  : // Reference to an unknown object (an IInterface or IUnknown interface pointer).
 //      varShortInt : // 8-bit signed integer (type ShortInt in Delphi or signed char in C++)
@@ -87,8 +87,8 @@ begin
 //      varLongWord : // unsigned 32-bit value (type LongWord in Delphi or unsigned long in C++)
 //      varInt64    : // 64-bit signed integer (Int64 in Delphi or __int64 in C++)
 //      varStrArg   : // COM-compatible string.
-      varString   : self.AddPair( AKey,  String(AValue) );            // Reference to a dynamically allocated string (not COM compatible).
-      varUString  : self.AddPair( AKey,  UnicodeString(AValue) );     //
+      varString   : self.AddPair( AKey,  String(AValue) {%H-});            // Reference to a dynamically allocated string (not COM compatible).
+      varUString  : self.AddPair( AKey,  UnicodeString(AValue) {%H-});     //
       else self.AddPair( AKey,  'Unsupported variant value (%s)', [ VarTypeAsText( vt ) ] );
    end;
 end;

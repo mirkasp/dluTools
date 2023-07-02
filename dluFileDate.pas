@@ -55,7 +55,7 @@ begin
 end;
 
 class function TuFileDate.FileTimeToDateTime(  const AFileTime: TFileTime ): TDateTime;
-  var _time : TFileTime;
+  var _time : TFileTime = (dwLowDateTime : 0; dwHighDateTime : 0);
       li    : ULARGE_INTEGER;
 begin
    if not FileTimeToLocalFileTime( AFileTime, _time ) then RaiseLastOSError;
