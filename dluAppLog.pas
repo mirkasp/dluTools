@@ -46,7 +46,7 @@ end;
 
 implementation
 
-uses Windows, Messages, SysUtils{, Strings.Helper};
+uses Windows, Messages, SysUtils;
 
 const cSepLineLen = 120;
 const cErrorMsg   = 'AppLog error - output not assigned !';
@@ -122,15 +122,14 @@ end;
 procedure TAppLog.SetActive(const Value: boolean);
 begin
    if Value <> fActive then begin
-//      if Value and not Assigned( fMemLog ) then raise Exception.Create( cErrorMsg );
       fActive := Value and Assigned( fMemLog );
    end;
 end;
 
 procedure TAppLog.SetMemLog(const Value: TMemo);
 begin
-  fMemLog := Value;
-  SetActive( Assigned( fMemLog ) );
+   fMemLog := Value;
+   SetActive( Assigned( fMemLog ) );
 end;
 
 procedure TAppLog.SkipToEnd;

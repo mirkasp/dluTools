@@ -20,23 +20,25 @@ uses Classes;
 function SplitString( const ASource: AnsiString; const ASeparator: AnsiChar ): TAnsiStringDynArray; overload;
   var i  : integer;
 begin
-  with TStringList.Create do begin
-     try
-        Delimiter     := ASeparator;
-        QuoteChar     := '"';
-        DelimitedText := ASource;
-        SetLength( Result, Count );
-        for i := 0 to Count-1 do Result[i] := Strings[i];
-     finally
-        Free;
-     end;
-  end;
+   Result := nil;
+   with TStringList.Create do begin
+      try
+         Delimiter     := ASeparator;
+         QuoteChar     := '"';
+         DelimitedText := ASource;
+         SetLength( Result, Count );
+         for i := 0 to Count-1 do Result[i] := Strings[i];
+      finally
+         Free;
+      end;
+   end;
 end;
 
 
 function SplitString( const ASource: UnicodeString; const ASeparator: UnicodeChar ): TUnicodeStringDynArray; overload;
   var i  : integer;
 begin
+   Result := nil;
    with TStringList.Create do
       try
          Delimiter     := ASeparator;
