@@ -34,9 +34,9 @@ type TuVariableLengthPQ<Key> = class( TInterfacedObject, IuPriorityQueue<Key> )
     procedure Resize( const newCapacity: integer );
     procedure Swim( k: integer ); inline; register;
     procedure Sink( k: integer ); inline; register;
-    procedure Exchg(const i, j: integer); inline; register;
+    procedure Exchg(const i, j: integer); register;
     function isMaxHeap( const k: integer = 1): boolean;     // is subtree of pq[1..n] rooted at k a max heap?
-    function Less( const i, j: integer ): boolean; inline; register;
+    function Less( const i, j: integer ): boolean; register;
   public
     constructor Create( ACompare: TCompFunc<Key>; const initCapacity: integer = 1 ); virtual;
     procedure Insert( Item: Key ); virtual;
