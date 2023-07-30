@@ -4,7 +4,8 @@ unit dluSysTools;
 
 interface
 
-function OpenDocument( const ADocumentName : string ): integer;
+function OpenDocument( const ADocumentName : UnicodeString ): boolean; overload;
+function OpenDocument( const ADocumentName : AnsiString    ): boolean; overload;
 
 function xFormat( const AFormat: string; const AParams: array of const ): string;
 
@@ -28,14 +29,25 @@ uses SysUtils
   ;
 
 
-function OpenDocument( const ADocumentName : string ): integer;
+function OpenDocument( const ADocumentName : UnicodeString ): boolean;
 begin
 {$IFDEF FPC}
-   Result := Integer(OpenUrl( UTF8Encode( ADocumentName ) ));
+   Result := OpenUrl( UTF8Encode( ADocumentName ) );
 {$ELSE}
    Result := ShellExecute( GetDesktopWindow(),
                            'open',
-                           PChar( ADocumentName ), nil, nil, SW_SHOWNORMAL);
+                           PChar( ADocumentName ), nil, nil, SW_SHOWNORMAL) > 32;
+{$ENDIF}
+end;
+
+function OpenDocument( const ADocumentName : AnsiString ): boolean;
+begin
+{$IFDEF FPC}
+   Result := OpenUrl( ADocumentName );
+{$ELSE}
+   Result := ShellExecute( GetDesktopWindow(),
+                           'open',
+                           PChar( ADocumentName ), nil, nil, SW_SHOWNORMAL) > 32;
 {$ENDIF}
 end;
 
