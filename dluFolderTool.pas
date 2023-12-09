@@ -171,7 +171,7 @@ begin
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
                 if fSearchParam.MatchingWith( fd )  then AStrategy.FileProc( s, fd );
              end else
-                if ARecursive and ValidFolderName( fd.cFileName )
+                if ARecursive and {%H-}ValidFolderName( fd.cFileName )
                   then fFolderStack.Push( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
@@ -197,7 +197,7 @@ begin
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
                 if fSearchParam.MatchingWith( fd )  then AMatchedFileMethod( s, fd );
              end else
-                if ARecursive and ValidFolderName( fd.cFileName )
+                if ARecursive and {%H-}ValidFolderName( fd.cFileName )
                   then fFolderStack.Push( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
@@ -224,7 +224,7 @@ begin
                 AEachFileMethod( fSearchParam.MatchingWith( fd ), s, fd, isBreak );
 
              end else
-                if ARecursive and ValidFolderName( fd.cFileName )
+                if ARecursive and {%H-}ValidFolderName( fd.cFileName )
                   then fFolderStack.Push( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd ) or isBreak;
           Windows.FindClose(h);
@@ -290,7 +290,7 @@ begin
    h := Default( THandle );
    if GetFirstFile( APath, h, @fd ) then begin
       repeat
-         if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and ValidFolderName( fd.cFileName) then begin
+         if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and {%H-}ValidFolderName( fd.cFileName) then begin
             if fSearchParam.MatchingWith( fd ) then AStrategy.FileProc( APath, fd );
          end;
       until not GetNextFile( h, @fd );
@@ -306,7 +306,7 @@ begin
    h := Default( THandle );
    if GetFirstFile( APath, h, @fd ) then begin
       repeat
-         if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and ValidFolderName( fd.cFileName) then begin
+         if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and {%H-}ValidFolderName( fd.cFileName) then begin
             if fSearchParam.MatchingWith( fd )  then FileAction( APath, fd );
          end;
       until not GetNextFile( h, @fd );
