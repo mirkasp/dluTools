@@ -63,11 +63,13 @@ class function TuFileDate.FileTimeToDateTime( const AFileTime: TFileTime; const 
   var localFileTime: TFileTime;
       sysTime      : TSystemTime;
 begin
-  if ConvertToLocalTimeZone
-     then FileTimeToLocalFileTime( AFileTime, localFileTime)
-     else localFileTime := AFileTime;
-  FileTimeToSystemTime( localFileTime, sysTime );
-  Result := SystemTimeToDateTime( sysTime );
+   localFileTime := Default( TFileTime );
+   sysTime       := Default( TSystemTime );
+   if ConvertToLocalTimeZone
+      then FileTimeToLocalFileTime( AFileTime, localFileTime)
+      else localFileTime := AFileTime;
+   FileTimeToSystemTime( localFileTime, sysTime );
+   Result := SystemTimeToDateTime( sysTime );
 end;
 
 
