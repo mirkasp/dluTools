@@ -69,7 +69,8 @@ end;
 implementation
 
 uses SysUtils
-   , Dialogs
+   , Classes
+   //, Dialogs
    , AppTools
    ;
 
@@ -129,121 +130,120 @@ end;
 
 constructor TuSqlite3DbHeader.Create( const AFileName: String) ;
   const cErrorStr = 'Illegal %s size ($d)';
-  var f    : file;
-      Res  : integer;
+  var Res  : integer;
+      fs   : TFileStream;
 begin
-  Res := SizeOf(UInt1);
-  if Res <> 1 then raise Exception.CreateFmt( cErrorStr, [ 'UInt1', Res ] );
+   Res := SizeOf(UInt1);
+   if Res <> 1 then raise Exception.CreateFmt( cErrorStr, [ 'UInt1', Res ] );
 
-  Res := SizeOf(UInt2);
-  if Res <> 2 then raise Exception.CreateFmt( cErrorStr, [ 'UInt2', Res ] );
+   Res := SizeOf(UInt2);
+   if Res <> 2 then raise Exception.CreateFmt( cErrorStr, [ 'UInt2', Res ] );
 
-  Res := SizeOf(UInt4);
-  if Res <> 4 then raise Exception.CreateFmt( cErrorStr, [ 'UInt4', Res ] );
-
+   Res := SizeOf(UInt4);
+   if Res <> 4 then raise Exception.CreateFmt( cErrorStr, [ 'UInt4', Res ] );
 
    with Fields[ hfMagicStr ] do begin
-     Name   := 'MagicStr';
-     Desc   := 'The header string: "SQLite format 3\000"';
+      Name   := 'MagicStr';
+      Desc   := 'The header string: "SQLite format 3\000"';
    end;
    with Fields[ hfPageSize ] do begin
-     Name := 'PageSize';
-     Desc := 'The database page size in bytes. Must be a power of two between 512 and 32768 inclusive, or the value 1 representing a page size of 65536.';
+      Name := 'PageSize';
+      Desc := 'The database page size in bytes. Must be a power of two between 512 and 32768 inclusive, or the value 1 representing a page size of 65536.';
    end;
    with Fields[ hfFileFormatW ] do begin
-     Name := 'FileFormatW';
-     Desc := 'File format write version. 1 for legacy; 2 for WAL.';
+      Name := 'FileFormatW';
+      Desc := 'File format write version. 1 for legacy; 2 for WAL.';
    end;
    with Fields[ hfFileFormatR ] do begin
-     Name := 'FileFormatR';
-     Desc := 'File format read version. 1 for legacy; 2 for WAL.';
+      Name := 'FileFormatR';
+      Desc := 'File format read version. 1 for legacy; 2 for WAL.';
    end;
    with Fields[ hfUnusedSpace ] do begin
-     Name := 'UnusedSpace';
-     Desc := 'Bytes of unused "reserved" space at the end of each page. Usually 0.';
+      Name := 'UnusedSpace';
+      Desc := 'Bytes of unused "reserved" space at the end of each page. Usually 0.';
    end;
    with Fields[ hfEmbdPayloadMax ] do begin
-     Name := 'EmbdPayloadMax';
-     Desc := 'Maximum embedded payload fraction. Must be 64.';
+      Name := 'EmbdPayloadMax';
+      Desc := 'Maximum embedded payload fraction. Must be 64.';
    end;
    with Fields[ hfEmbdPayloadMin ] do begin
-     Name := 'EmbdPayloafMin';
-     Desc := 'Minimum embedded payload fraction. Must be 32.';
+      Name := 'EmbdPayloafMin';
+      Desc := 'Minimum embedded payload fraction. Must be 32.';
    end;
    with Fields[ hfLeafPayload ] do begin
-     Name := 'LeafPayload';
-     Desc := 'Leaf payload fraction. Must be 32.';
+      Name := 'LeafPayload';
+      Desc := 'Leaf payload fraction. Must be 32.';
    end;
    with Fields[ hfChangeCounter ] do begin
-     Name := 'ChangeCounter';
-     Desc := 'File change counter.';
+      Name := 'ChangeCounter';
+      Desc := 'File change counter.';
    end;
    with Fields[ hfSizeInPages ] do begin
-     Name := 'SizeInPages';
-     Desc := 'Size of the database file in pages. The "in-header database size".';
+      Name := 'SizeInPages';
+      Desc := 'Size of the database file in pages. The "in-header database size".';
    end;
    with Fields[ hfTP_PageNumber ] do begin
-     Name := 'TP_PageNumber';
-     Desc := 'Page number of the first freelist trunk page.';
+      Name := 'TP_PageNumber';
+      Desc := 'Page number of the first freelist trunk page.';
    end;
    with Fields[ hfFL_TotalPages ] do begin
-     Name := 'FL_TotalPages';
-     Desc := 'Total number of freelist pages.';
+      Name := 'FL_TotalPages';
+      Desc := 'Total number of freelist pages.';
    end;
    with Fields[ hfSchemaCookie ] do begin
-     Name := 'SchemaCookie';
-     Desc := 'The schema cookie.';
+      Name := 'SchemaCookie';
+      Desc := 'The schema cookie.';
    end;
    with Fields[ hfSchemaFormat ] do begin
-     Name := 'SchemaFormat';
-     Desc := 'The schema format number. Supported schema formats are 1, 2, 3, and 4.';
+      Name := 'SchemaFormat';
+      Desc := 'The schema format number. Supported schema formats are 1, 2, 3, and 4.';
    end;
    with Fields[ hfPageCacheSize ] do begin
-     Name := 'PageCacheSize';
-     Desc := 'Default page cache size.';
+      Name := 'PageCacheSize';
+      Desc := 'Default page cache size.';
    end;
    with Fields[ hfLargesRoot ] do begin
-     Name := 'LargesRoot';
-     Desc := 'The page number of the largest root b-tree page when in auto-vacuum or incremental-vacuum modes, or zero otherwise.';
+      Name := 'LargesRoot';
+      Desc := 'The page number of the largest root b-tree page when in auto-vacuum or incremental-vacuum modes, or zero otherwise.';
    end;
    with Fields[ hfTextEncoding ] do begin
-     Name := 'TextEncoding';
-     Desc := 'The database text encoding. A value of 1 means UTF-8. A value of 2 means UTF-16le. A value of 3 means UTF-16be.';
+      Name := 'TextEncoding';
+      Desc := 'The database text encoding. A value of 1 means UTF-8. A value of 2 means UTF-16le. A value of 3 means UTF-16be.';
    end;
    with Fields[ hfUserVersion ] do begin
-     Name := 'UserVersion';
-     Desc := 'The "user version" as read and set by the user_version pragma.';
+      Name := 'UserVersion';
+      Desc := 'The "user version" as read and set by the user_version pragma.';
    end;
    with Fields[ hfIncVacuumMode ] do begin
-     Name := 'IncVacuumMode';
-     Desc := 'True (non-zero) for incremental-vacuum mode. False (zero) otherwise.';
+      Name := 'IncVacuumMode';
+      Desc := 'True (non-zero) for incremental-vacuum mode. False (zero) otherwise.';
    end;
    with Fields[ hfApplicationID ] do begin
-     Name := 'ApplicationID';
-     Desc := 'The "Application ID" set by PRAGMA application_id.';
+      Name := 'ApplicationID';
+      Desc := 'The "Application ID" set by PRAGMA application_id.';
    end;
    with Fields[ hfReserved ] do begin
-     Name := 'Reserved';
-     Desc := 'Reserved for expansion. Must be zero.';
+      Name := 'Reserved';
+      Desc := 'Reserved for expansion. Must be zero.';
    end;
    with Fields[ hfVersion ] do begin
-     Name := 'Version';
-     Desc := 'The version-valid-for number.';
+      Name := 'Version';
+      Desc := 'The version-valid-for number.';
    end;
    with Fields[ hfVersionNumber ] do begin
-     Name := 'VersionNumber';
-     Desc := 'SQLITE_VERSION_NUMBER';
+      Name := 'VersionNumber';
+      Desc := 'SQLITE_VERSION_NUMBER';
    end;
 
 ///////////////
    BufSize := SizeOf( TuSqliteFileHeader );
    GetMem( Buffer, BufSize );
 
-   AssignFile( f, AFileName );
-   Reset( f, BufSize );
-   BlockRead( f, Buffer^, 1, Res );
-   Assert( Res = 1 );
-   CloseFile( f );
+   fs := TFileStream.Create( AFileName, fmOpenRead+fmShareDenyNone );
+   fs.Seek( 0, fsFromBeginning );
+   if fs.Read( Buffer^, BufSize ) <> BufSize then raise Exception.Create( 'SQLite database reading error!' );
+   fs.Free;
+
 end;
 
 destructor TuSqlite3DbHeader.Destroy;
