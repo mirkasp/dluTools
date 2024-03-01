@@ -74,7 +74,7 @@ function GetPETypeStr( const APath: WideString ): string;
 
 function AttrWin32( const x: Cardinal ): string;
 
-
+function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
 function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
 
 implementation
@@ -135,6 +135,25 @@ begin
       Inc( APos );
    end;
 end;
+
+
+function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
+   var i : integer;
+       s : String;
+begin
+   Result := '';
+   s := '';
+   if Length(AFolders) > 0 then begin
+      s := AFolders[0] + PathSeparator;
+      for i:=1 to Length( AFolders )-1 do s := s + AFolders[i] + PathSeparator;
+   end;
+   if APathEnv then
+      s := s + GetEnvironmentVariable( UTF8Decode( 'PATH' ) );
+
+   if not SearchForFile( s, AFileName, Result ) then Result := '';
+
+end;
+
 
 function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
   var actPos : integer;
