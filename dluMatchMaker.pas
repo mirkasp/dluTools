@@ -15,7 +15,7 @@ uses dluSplitString;
 
 type TuMatchMaker = class
    strict private
-      fPatternsTab : TStrDynArray; // array of string;
+      fPatternsTab : TUnicodeStringDynArray; // array of string;
    public
       constructor Create( const APatterns: string = '' );
       function IsMatching( const AText: string ): boolean;
