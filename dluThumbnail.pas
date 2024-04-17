@@ -1,4 +1,4 @@
-unit dluThumbnailBase;
+unit dluThumbnail;
 
 {$mode ObjFPC}{$H+}
 {$modeswitch ADVANCEDRECORDS}
