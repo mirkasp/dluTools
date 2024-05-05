@@ -14,13 +14,13 @@ type TFormParamConfig = class
      const INIT_SIZE = 4;
      const CLI_FORMS_DEFAULT_SECTION  = 'FORMS';
        var fForms  : TStringList;
-           CliFormsSection : string;
+           CliFormsSection : AnsiString;
    public
-     constructor Create( const AFormsSection: string = '' );
+     constructor Create( const AFormsSection: AnsiString = '' );
      destructor Destroy; override;
      //
-     procedure SaveFormParam( AForm: TForm; const AId: string );
-     procedure RestoreFormParam( AForm: TForm; const AId: string );
+     procedure SaveFormParam( AForm: TForm; const AId: AnsiString );
+     procedure RestoreFormParam( AForm: TForm; const AId: AnsiString );
      //
      procedure SaveToIni( AIni: TIniFile );
      procedure RestoreFromIni( AIni: TIniFile );
@@ -34,7 +34,7 @@ uses SysUtils
 
 { TFormParamConfig }
 
-constructor TFormParamConfig.Create( const AFormsSection: string = '' );
+constructor TFormParamConfig.Create( const AFormsSection: AnsiString = '' );
 begin
    inherited Create;
    fForms := TStringList.Create;
@@ -50,8 +50,8 @@ begin
    inherited Destroy;
 end;
 
-procedure TFormParamConfig.SaveFormParam( AForm: TForm; const AId: string);
-  var s : string;
+procedure TFormParamConfig.SaveFormParam( AForm: TForm; const AId: AnsiString);
+  var s : AnsiString;
       n : integer;
 begin
 
@@ -67,9 +67,9 @@ begin
 
 end;
 
-procedure TFormParamConfig.RestoreFormParam( AForm: TForm; const AId: string);
+procedure TFormParamConfig.RestoreFormParam( AForm: TForm; const AId: AnsiString);
   var _l, _t, _w, _h : integer;
-      s : string = '';
+      s : AnsiString = '';
 begin
    if fForms.IndexOfName( AId ) < 0
       then s := '*'
