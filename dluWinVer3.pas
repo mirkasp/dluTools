@@ -62,6 +62,7 @@ type
      procedure Prepare_Win32_NT_Platform;
      procedure TryReadFromRegistry;
      function GetCompilationInfo: WideString;
+     function GetWin11Version: UnicodeString;
    public
      constructor Create;
      destructor Destroy; override;
@@ -99,6 +100,8 @@ type
      property ReleaseId            : string     read fReleaseId;
      property UBR                  : integer    read fUBR;
      property InstallDate          : TDateTime  read fInstallDate;
+     //
+     property Win11Version         : UnicodeString read GetWin11Version;
 
 end;
 
@@ -490,6 +493,21 @@ begin
                    [ fMajorVersion, fMinorVersion, fBuildNumber, s, fCSDVersion ] ) );
 end;
 
+function TWinVerSpec.GetWin11Version: UnicodeString;
+begin
+   Result := '';
+   // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
+   if (fMajorVersion = 10) and (fMinorVersion = 0) and (fProductType = VER_NT_WORKSTATION) then begin
+        case fBuildNumber of
+           22000 : Result := '21H2';
+           22621 : Result := '22H2';
+           22631 : Result := '23H2';
+           26100 : Result := '24H2';
+            else   Result := '????';
+        end;
+   end;
+end;
+
 {
 https://stackoverflow.com/questions/8144599/getting-the-windows-version
 https://wiki.freepascal.org/WindowsVersion
@@ -587,9 +605,10 @@ begin
 
       // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
       if fMinorVersion = 0 then begin
-         if fProductType = VER_NT_WORKSTATION
-            then AppendToNameIf( fBuildNumber >=22000, '11', '10' )
-            else AppendToName( 'Server 2016' );
+         if fProductType = VER_NT_WORKSTATION then begin
+            AppendToNameIf( fBuildNumber >=22000, '11', '10' );
+            fName := Trim( fname + ' ' + GetWin11Version() );
+         end else AppendToName( 'Server 2016' );
       end else
          fName := UnknownSystem( 'Unknown Windows version', osi );
 
