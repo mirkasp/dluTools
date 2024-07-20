@@ -26,7 +26,7 @@ type TDynStringArray = array of string;
      fColValue   : TDynStringArray;
      function StringsToArray( const AStrings: TStrings ): TDynStringArray;
      procedure InitializePseudoCombo( AEditButton: TEditButton; const AColWidth: array of const;
-                                      const AColValue: TDynStringArray );
+                                      const AColValues: TDynStringArray );
      procedure PrepareColumnsWidth();
      procedure ButtonClick( Sender: TObject);
      procedure ListBox1Resize( Sender: TObject) ;
@@ -34,8 +34,10 @@ type TDynStringArray = array of string;
      procedure ListBoxKeyPress( Sender: TObject; var Key: char) ;
      procedure ListBoxDrawItem( {%H-}Control: TWinControl; Index: Integer; ARect: TRect; {%H-}State: TOwnerDrawState) ;
    public
-     constructor Create( AEditButton: TEditButton; const AColWidth: array of const; const AColValue: TDynStringArray ); overload;
-     constructor Create( AEditButton: TEditButton; const AColWidth: array of const; AColValue: TStrings ); overload;
+     constructor Create( AEditButton: TEditButton; const AColWidth: array of const; const AColValues: TDynStringArray ); overload;
+     constructor Create( AEditButton: TEditButton; const AColWidth: array of const; AColValues: TStrings ); overload;
+     procedure AddColumnValues( AColValues: TDynStringArray ); overload;
+     procedure AddColumnValues( AColValues: TStrings ); overload;
      destructor Destroy; override;
    end;
 
@@ -46,14 +48,34 @@ uses SysUtils;
 
 { TMultiColsComboBox }
 
-constructor TMultiColsComboBox.Create( AEditButton: TEditButton; const AColWidth: array of const; const AColValue: TDynStringArray );
+constructor TMultiColsComboBox.Create(AEditButton: TEditButton;
+  const AColWidth: array of const; const AColValues: TDynStringArray);
 begin
-   InitializePseudoCombo( AEditButton, AColWidth, AColValue );
-end ;
+   InitializePseudoCombo( AEditButton, AColWidth, AColValues );
+end;
 
-constructor TMultiColsComboBox.Create( AEditButton: TEditButton; const AColWidth: array of const ; AColValue: TStrings) ;
+constructor TMultiColsComboBox.Create( AEditButton: TEditButton; const AColWidth: array of const ; AColValues: TStrings) ;
 begin
-   InitializePseudoCombo( AEditButton, AColWidth, StringsToArray( AColValue ) );
+   InitializePseudoCombo( AEditButton, AColWidth, StringsToArray( AColValues ) );
+end;
+
+procedure TMultiColsComboBox.AddColumnValues( AColValues: TDynStringArray );
+  var i: integer;
+begin
+   if not Assigned( AColValues ) then Exception.Create( 'Nil parametr in AddColumnValues procedure' );
+
+   // prepare fColValue table
+   fColValue := AColValues;
+
+   // dummy items
+   fListBox.Clear;
+   for i:=1 to Length( fColValue ) div fColCount do fListBox.AddItem( '', nil );
+
+end;
+
+procedure TMultiColsComboBox.AddColumnValues( AColValues: TStrings );
+begin
+   AddColumnValues( StringsToArray( AColValues ) );
 end;
 
 destructor TMultiColsComboBox.Destroy;
@@ -72,8 +94,8 @@ begin
 end;
 
 procedure TMultiColsComboBox.InitializePseudoCombo( AEditButton: TEditButton;
-                                                  const AColWidth: array of const;
-                                                  const AColValue: TDynStringArray );
+                                                    const AColWidth: array of const;
+                                                    const AColValues: TDynStringArray);
   var i: integer;
 begin
    Assert( Assigned( AEditButton ), 'Błąd 1' );
@@ -115,12 +137,9 @@ begin
    SetLength( fColParam, fColCount + 1 );
    PrepareColumnsWidth();
 
-   // prepare fColValue table
-   fColValue := AColValue;
-
-   // dummy items
-   for i:=1 to Length( fColValue ) div fColCount do fListBox.AddItem( '', nil );
-
+   if Assigned( AColValues ) then begin
+      AddColumnValues( AColValues );
+   end;
 
 end;
 
@@ -140,7 +159,7 @@ end ;
 procedure TMultiColsComboBox.ButtonClick( Sender: TObject) ;
 begin
    fListBox.Visible := not fListBox.Visible;
-   if fListBox.Visible then begin
+   if (fListBox.Count > 0) and fListBox.Visible then begin
       fListBox.SetFocus;
       fListBox.Selected[0] := true;
    end;
