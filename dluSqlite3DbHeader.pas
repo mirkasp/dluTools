@@ -71,7 +71,7 @@ implementation
 uses SysUtils
    , Classes
    //, Dialogs
-   , AppTools
+   //, AppTools
    ;
 
 type UInt1 = Byte;
@@ -125,6 +125,57 @@ begin
       Result := Result + ' ' + UnicodeString(ByteAsHex( p ));
    end;
 end;
+
+procedure SwapBytes(var Bytes; Len: Integer);
+  var Swapped: PByte;
+      i: Integer;
+begin
+  if Len > 1 then begin
+     GetMem(Swapped, Len);
+     try
+        for i := 0 to Len - 1 do Swapped[Len - i - 1] := PByte(@Bytes)[i];
+        Move(Swapped^, Bytes, Len);
+     finally
+        FreeMem(Swapped);
+     end;
+  end;
+end;
+
+function SwapX( const n: Word ): Word; overload;
+begin
+   Result := n;
+   SwapBytes( Result, SizeOf(Result) );
+end;
+
+function SwapX( const n: LongWord ): LongWord; overload;
+begin
+   Result := n;
+   SwapBytes( Result, SizeOf(Result) );
+end;
+
+function AsUnicodeString( const AValue: Cardinal ): UnicodeString;
+begin
+   Result := UnicodeString( IntToStr( AValue ) );
+end;
+
+const UxHexDigit: array[0..15] of UnicodeChar = '0123456789ABCDEF';
+
+function AsHex( const AValue: byte ): UnicodeString; overload;
+begin
+   Result := UxHexDigit[ AValue shr 4] + UxHexDigit[ AValue and $0F];
+end;
+
+{$WARN 4022 off : lo/hi(dword/qword) returns the upper/lower word/dword}
+function AsHex( const AValue: Word ): UnicodeString; overload;
+begin
+   Result := AsHex( Hi( AValue ) ) + AsHex( Lo( AValue ) );
+end;
+
+function AsHex( const AValue: LongWord ): UnicodeString; overload;
+begin
+   Result := AsHex( Hi( AValue ) ) + ' ' +AsHex( Lo( AValue ) );
+end;
+{$WARN 4022 on}
 
 { TuSqlite3DbHeader }
 
@@ -239,7 +290,7 @@ begin
    BufSize := SizeOf( TuSqliteFileHeader );
    GetMem( Buffer, BufSize );
 
-   fs := TFileStream.Create( AFileName, fmOpenRead+fmShareDenyNone );
+   fs := TFileStream.Create( UTF8Encode( AFileName ), fmOpenRead+fmShareDenyNone );
    fs.Seek( 0, fsFromBeginning );
    if fs.Read( Buffer^, BufSize ) <> BufSize then raise Exception.Create( 'SQLite database reading error!' );
    fs.Free;
