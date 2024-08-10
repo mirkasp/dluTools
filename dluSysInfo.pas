@@ -13,6 +13,7 @@ function CompilerVersionAsString: string;
 
 function GetUserName(): string;
 function GetComputerName(): string;
+function GetUserInfoShort(): string;
 
 function GetMemoryInfo(const ABold: boolean = false; const ALng: TuLocalization = ulEn ): string;
 
@@ -144,6 +145,11 @@ end;
 function GetComputerName(): string;
 begin
    Result := SysUtils.GetEnvironmentVariable('COMPUTERNAME');
+end;
+
+function GetUserInfoShort(): string;
+begin
+   Result := GetUserName() + '@' + GetComputerName();
 end;
 
 //function GetProcessorName(): string;
