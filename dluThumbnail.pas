@@ -13,6 +13,10 @@ uses Classes
    , PdfiumCore
    ;
 
+type TThumbMode = ( tm_none, tm_int, tm_gen );
+
+type TFrameMode = ( fm_none, fm_auto, fm_custom );
+
 { TuThumbnail }
 type TuThumbnail = class
     strict private
@@ -25,20 +29,24 @@ type TuThumbnail = class
              constructor Create( AWidth, AHeight: integer );
            end;
       var
+       fThumbMode       : TThumbMode;
+       fFrameMode       : TFrameMode;
+       fFrameColorInt   : TColor;                       // frame color for internal thumbnail
+       fFrameColorGen   : TColor;                       // frame color for generated thumbnail
        fMaxWidth        : integer;
        fMaxHeight       : integer;
        fPng             : TPortableNetworkGraphic;
        fStatusStr       : string;
        //
        fOnLog           : TGetStrProc;
-       fFramed          : boolean;
-       fFrameColor      : TColor;
+       //fFramed          : boolean;
+       //fFrameColor      : TColor;
        procedure DoOnLog( const AText: string ); dynamic; overload;
        procedure DoOnLog( const Fmt: string; const AValues: array of const ); dynamic; overload;
        procedure Initialize(); virtual;
        function SizeNormalization( const SrcWidth, SrcHeight: integer ): TImgSize; overload;
        function SizeNormalization( const SrcSize : TImgSize ): TImgSize; overload;
-       function InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation ): boolean;
+       function InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation; const AThumbMode: TThumbMode ): boolean;
        procedure ConvertToPng( ABitmap: TBGRABitmap );
     public
        class function IsPfdExtension( const xFileName: AnsiString ): boolean; overload;
@@ -63,9 +71,13 @@ type TuThumbnail = class
        property Width     : integer                 read GetPngWidth;
        property Height    : integer                 read GetPngHeight;
        //
-       property OnLog     : TGetStrProc             read fOnLog         write fOnLog;
-       property Framed    : boolean                 read fFramed        write fFramed;
-       property FrameColor: TColor                  read fFrameColor    write fFrameColor;
+       property OnLog         : TGetStrProc         read fOnLog         write fOnLog;
+       //property Framed    : boolean                 read fFramed        write fFramed;
+       property FrameMode     : TFrameMode          read fFrameMode     write fFrameMode;
+       property FrameColorInt : TColor              read fFrameColorInt write fFrameColorInt;
+       property FrameColorGen : TColor              read fFrameColorGen write fFrameColorGen;
+       //property FrameColor    : TColor              read fFrameColor    write fFrameColor;
+       property ThumbMode     : TThumbMode          read fThumbMode;
  end;
 
 
@@ -107,6 +119,8 @@ uses SysUtils
 const DEFAULT_MAX_WIDTH  = 200;
 const DEFAULT_MAX_HEIGHT = 200;
 
+const FRAME_AUTO_COLORS : array[ TThumbMode ] of TColor = ( clNone, clBlue, clRed );
+
 { TuThumbnail }
 
 constructor TuThumbnail.Create();
@@ -133,7 +147,13 @@ end;
 
 procedure TuThumbnail.Initialize();
 begin
-   fPng := TPortableNetworkGraphic.Create;
+   fThumbMode := tm_none;
+   fFrameMode := fm_auto;
+
+   fFrameColorInt := FRAME_AUTO_COLORS[ tm_int ];
+   fFrameColorGen := FRAME_AUTO_COLORS[ tm_gen ];
+
+   fPng       := TPortableNetworkGraphic.Create;
    fStatusStr := '';
 end;
 
@@ -188,7 +208,7 @@ begin
   Result := SizeNormalization( SrcSize.Width, SrcSize.Height );
 end;
 
-function TuThumbnail.InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation): boolean;
+function TuThumbnail.InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation; const AThumbMode: TThumbMode ): boolean;
   var DstSize : TImgSize;
       BmpX    : TBGRABitmap;
       tmp     : TBGRABitmap;
@@ -216,6 +236,8 @@ begin
          tmp1.Free;
       end;
 
+      fThumbMode := AThumbMode;
+
       ConvertToPng( tmp );
 
       tmp.Free;
@@ -227,10 +249,27 @@ begin
 end;
 
 procedure TuThumbnail.ConvertToPng( ABitmap: TBGRABitmap );
-begin
-   if fFramed then begin
-      ABitmap.Rectangle( ABitmap.ClipRect, ColorToBGRA( fFrameColor, $FF ) );
+
+   function ColorForCustomFrameMode( const AThumbMode: TThumbMode ): TColor;
+   begin
+      case AThumbMode of
+         tm_int : Result := fFrameColorInt;
+         tm_gen : Result := fFrameColorGen;
+         else     Result := clNone;
+      end;
    end;
+
+  var lColor : TColor;
+begin
+   case fFrameMode of
+      fm_auto    : lColor := FRAME_AUTO_COLORS[ fThumbMode ];
+      fm_custom  : lColor := ColorForCustomFrameMode( fThumbMode );
+      else         lColor := clNone;
+   end;
+
+   if lColor <> clNone
+      then ABitmap.Rectangle( ABitmap.ClipRect, ColorToBGRA( lColor, $FF ) );
+
    fPng.Assign( ABitmap.Bitmap );
    fStatusStr := Format( '%dx%d', [ fPng.Width, fPng.Height ] );
 end;
@@ -274,7 +313,7 @@ begin
 
          ms := TMemoryStream.Create;
          if Clipboard.GetFormat( xc, ms ) then begin
-            InternalLoadFromStream( ms, eoUnknown );
+            InternalLoadFromStream( ms, eoUnknown, tm_gen );
             Result := true;
          end;
          ms.Free;
@@ -293,12 +332,13 @@ function TuThumbnail.LoadFromBitmap(ABitmap: TBitmap): boolean;
 begin
    ms := TMemoryStream.Create;
    ABitmap.SaveToStream( ms );
-   Result := InternalLoadFromStream( ms, eoUnknown );
+   Result := InternalLoadFromStream( ms, eoUnknown, tm_gen );
    ms.Free;
 end;
 
 
 function TuThumbnail.LoadFromStream(AStream: TStream; const AAutoRotate: boolean): boolean;
+ //const acThumbMode: array[ boolean ] of TThumbMode = ( tm_gen, tm_int );
   var mini   : TMemoryStream;
       fpe_img: fpeMetadata.TImgInfo;
       imgRot : TExifOrientation;
@@ -318,7 +358,7 @@ begin
          mini := TMemoryStream.Create;
          try
             fpe_img.SaveThumbnailToStream( mini );
-            Result := InternalLoadFromStream( mini, imgRot );
+            Result := InternalLoadFromStream( mini, imgRot, tm_int );
          except
            imgFmt := false;
          end;
@@ -331,7 +371,7 @@ begin
    fpe_img.Free;
 
    if not imgFmt then begin
-      InternalLoadFromStream( AStream, imgRot );
+      InternalLoadFromStream( AStream, imgRot, tm_gen );
       Result := true;
    end;
 
@@ -351,7 +391,7 @@ function TuThumbnail.LoadFromBlob(AField: TBlobField): boolean;
 begin
    tmp := TMemoryStream.Create;
    AField.SaveToStream( tmp );
-   Result := InternalLoadFromStream( tmp, eoUnknown );
+   Result := InternalLoadFromStream( tmp, eoUnknown, tm_gen );
    tmp.Free;
 end;
 
@@ -446,11 +486,11 @@ begin
 
       DstSize := SizeNormalization( pageSize );
       tmp     := Resample( DstSize.Width, DstSize.Height, rmFineResample ) as TBGRABitmap;
+      fThumbMode := tm_gen;
       ConvertToPng( tmp );
       tmp.Free;
 
       Free;
-
    end;
 
 end;
