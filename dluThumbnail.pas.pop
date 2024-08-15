@@ -1,0 +1,605 @@
+unit dluThumbnail;
+
+{$mode ObjFPC}{$H+}
+
+interface
+
+uses Classes
+   , Graphics
+   , fpeGlobal
+   , PdfiumLib
+   , PdfiumCore
+   ;
+
+type TStrEvent = procedure( const AText: string ) of object;
+
+type
+
+ { TuThumbnailBase }
+
+ TuThumbnailBase = class
+    strict private
+      function GetPngHeight: integer;
+      function GetPngWidth: integer;
+    protected
+       fMaxWidth        : integer;
+       fMaxHeight       : integer;
+       fPng             : TPortableNetworkGraphic;
+       fStatusStr       : string;
+       //
+       fOnLog           : TStrEvent;
+       fFramed          : boolean;
+       fFrameColor      : TColor;
+       procedure DoOnLog( const AText: string ); dynamic; overload;
+       procedure DoOnLog( const Fmt: string; const AValues: array of const ); dynamic; overload;
+       procedure Initialize(); virtual;
+       procedure DimensionResize( const SrcWidth, SrcHeight: integer; out AFinalWidth, AFinalHeight: integer );
+       function InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation ): boolean;
+    public
+       constructor Create(); overload;
+       constructor Create( const AWidth, AHeight: integer ); overload;
+       //
+       destructor Destroy; override;
+       //
+       function LoadFromClipboard(): boolean;
+       function LoadFromBitmap( ABitmap: TBitmap ): boolean;
+       function LoadFromStream( AStream: TStream; const AAutoRotate: boolean = true ): boolean;
+       function LoadFromFile( const AFileName: UnicodeString; const AAutoRotate: boolean = true ): boolean;
+       //
+       property PNG       : TPortableNetworkGraphic read fPng;
+       property Status    : string                  read fStatusStr;
+       property Width     : integer                 read GetPngWidth;
+       property Height    : integer                 read GetPngHeight;
+       //
+       property OnLog     : TStrEvent               read fOnLog         write fOnLog;
+       property Framed    : boolean                 read fFramed        write fFramed     default false;
+       property FrameColor: TColor                  read fFrameColor    write fFrameColor default clRed;
+
+ end;
+
+{ TuMagickThumbnail }
+TuPdfThumbnailBase = class( TuThumbnailBase )
+  strict private
+  protected
+  public
+
+end;
+
+ TuMagickThumbnail = class( TuPdfThumbnailBase )
+   strict private
+      fMagickFile      : UnicodeString;
+      fTempFolder      : UnicodeString;
+   protected
+      procedure Initialize(); override;
+   public
+      //
+      procedure LoadFromPdfFile( const AFileName: UnicodeString; const APageNr: integer = 1 );
+      //
+      property MagickFile   : UnicodeString    read fMagickFile write fMagickFile;
+      property TempFolder   : UnicodeString    read fTempFolder write fTempFolder;
+end;
+
+{ TuPdfThumbnail }
+
+TuPdfThumbnail = class( TuPdfThumbnailBase )
+   strict private
+      fPDFiumDllFile : UnicodeString;
+      fDocFileName   : UnicodeString;
+      fDoc           : TPdfDocument;
+      fPageCount     : integer;
+      //
+      procedure DisplayLastError();
+      procedure PngFromPdfBitmap( APdfBitmap: FPDF_BITMAP );
+      function TryRenderPage( const APageNr: integer ): boolean;
+   protected
+      procedure Initialize(); override;
+   public
+      destructor Destroy; override;
+      //
+      function OpenPdf( const AFileName: UnicodeString ): boolean;
+      procedure ThumbnailForPage( const APageNr: integer = 1 );
+      //
+      property PDFiumDllFile : UnicodeString  read fPDFiumDLLFile  write fPDFiumDllFile;
+      property PageCount     : integer        read fPageCount;
+end;
+
+implementation
+
+uses fpeMetadata
+   , BGRABitmap
+   , BGRABitmapTypes
+   , SysUtils
+   , Clipbrd
+   , LCLIntf, LCLType
+   , Process
+   , Dialogs
+   , dluFileInfo
+   ;
+
+const DEFAULT_MAX_WIDTH  = 200;
+const DEFAULT_MAX_HEIGHT = 200;
+
+{ TuThumbnailBase }
+
+function TuThumbnailBase.GetPngHeight: integer;
+begin
+  if Assigned( fPng )
+     then Result := fPng.Height
+     else Result := -1;
+end;
+
+function TuThumbnailBase.GetPngWidth: integer;
+begin
+  if Assigned( fPng )
+     then Result := fPng.Width
+     else Result := -1;
+end;
+
+procedure TuThumbnailBase.DoOnLog(const AText: string);
+begin
+   if Assigned( fOnLog ) then fOnLog( AText );
+end;
+
+procedure TuThumbnailBase.DoOnLog(const Fmt: string; const AValues: array of const);
+begin
+   DoOnLog( Format( Fmt, AValues ) );
+end;
+
+procedure TuThumbnailBase.Initialize();
+begin
+   fPng       := TPortableNetworkGraphic.Create;
+   fStatusStr := '';
+end;
+
+procedure TuThumbnailBase.DimensionResize(const SrcWidth, SrcHeight: integer; out AFinalWidth, AFinalHeight: integer);
+ const cPow = 1000;
+   var alfa, beta: Double;
+begin
+   Assert( SrcWidth > 0 );
+   Assert( SrcHeight > 0 );
+   alfa := fMaxHeight / SrcHeight;
+   beta := fMaxWidth / SrcWidth;
+
+   if (alfa >= 1.0) and (beta >= 1.0) then begin
+      AFinalHeight := SrcHeight;
+      AFinalWidth  := SrcWidth;
+   end else
+      if alfa <= beta then begin
+         AFinalHeight := fMaxHeight;
+         AFinalWidth  := Round( cPow * alfa * SrcWidth ) div cPow;
+      end else begin
+         AFinalHeight := Round( cPow * beta * SrcHeight ) div cPow;
+         AFinalWidth  := fMaxWidth;
+      end;
+end;
+
+function TuThumbnailBase.InternalLoadFromStream( AStream: TStream;
+                                                 const AOrientation: TExifOrientation): boolean;
+
+  var tWidth  : integer;
+      tHeight : integer;
+      BmpX    : TBGRABitmap;
+      tmp     : TBGRABitmap;
+      tmp1    : TBGRABitmap;
+
+begin
+   AStream.Position := 0;
+
+   Result := false;
+   BmpX   := TBGRABitmap.Create( AStream );
+   try
+      DimensionResize( BmpX.Width, BmpX.Height, tWidth, tHeight );
+
+      tmp := BmpX.Resample( tWidth, tHeight, rmFineResample ) as TBGRABitmap;
+
+      if AOrientation in [ eoRotate90, eoRotate180, eoRotate270 ] then begin
+         // de-rotation
+         case AOrientation of
+            eoRotate90  : tmp1 := tmp.RotateCW;
+            eoRotate180 : tmp1 := tmp.RotateCCW;
+            eoRotate270 : tmp1 := tmp.RotateUD;
+            else          tmp1 := tmp.Duplicate();
+         end;
+         tmp.Assign( tmp1.Bitmap );
+         tmp1.Free;
+      end;
+
+      fPng.Assign( tmp.Bitmap );
+      tmp.Free;
+
+      fStatusStr := Format( '%dx%d', [ fPng.Width, fPng.Height ] );
+      Result     := true;
+   except
+      BmpX.Free;
+   end;
+end;
+
+constructor TuThumbnailBase.Create();
+begin
+   inherited Create;
+   fMaxWidth  := DEFAULT_MAX_WIDTH;
+   fMaxHeight := DEFAULT_MAX_HEIGHT;
+   Initialize();
+end;
+
+constructor TuThumbnailBase.Create(const AWidth, AHeight: integer);
+begin
+   inherited Create;
+   fMaxWidth  := AWidth;
+   fMaxHeight := AHeight;
+   Initialize();
+end;
+
+destructor TuThumbnailBase.Destroy;
+begin
+   fPng.Free;
+   inherited Destroy;
+end;
+
+function TuThumbnailBase.LoadFromClipboard(): boolean;
+   var pdfc : TPredefinedClipboardFormat;
+       xc   : TClipboardFormat;
+       ms   : TMemoryStream;
+begin
+   Result := false;
+   for pdfc in TPredefinedClipboardFormat do begin
+      xc := PredefinedClipboardFormat( pdfc );
+      if Clipboard.HasFormat( xc ) then begin
+
+         ms := TMemoryStream.Create;
+         if Clipboard.GetFormat( xc, ms ) then begin
+            InternalLoadFromStream( ms, eoUnknown );
+            Result := true;
+         end;
+         ms.Free;
+
+         break;
+      end;
+   end;
+   if Result
+      then fStatusStr := 'Ok, ' + PredefinedClipboardMimeTypes[ pdfc ]
+      else fStatusStr := 'Unknown data in clipboard';
+
+end;
+
+function TuThumbnailBase.LoadFromBitmap(ABitmap: TBitmap): boolean;
+  var ms : TMemoryStream;
+begin
+   ms := TMemoryStream.Create;
+   ABitmap.SaveToStream( ms );
+   Result := InternalLoadFromStream( ms, eoUnknown );
+   ms.Free;
+end;
+
+function TuThumbnailBase.LoadFromStream(AStream: TStream; const AAutoRotate: boolean): boolean;
+  var mini   : TMemoryStream;
+      fpe_img: fpeMetadata.TImgInfo;
+      imgRot : TExifOrientation;
+      imgFmt : boolean;
+begin
+   Result  := false;
+   AStream.Position := 0;
+   imgRot  := eoUnknown;
+   imgFmt  := true;
+   fpe_img := TImgInfo.Create();
+
+   try
+      fpe_img.LoadFromStream( AStream );
+      if fpe_img.HasExif and AAutoRotate then imgRot := fpe_img.ExifData.ImgOrientation;
+      imgFmt := fpe_img.HasThumbnail;
+      if imgFmt then begin
+         mini := TMemoryStream.Create;
+         try
+            fpe_img.SaveThumbnailToStream( mini );
+            Result := InternalLoadFromStream( mini, imgRot );
+         except
+           imgFmt := false;
+         end;
+         mini.Free;
+      end;
+   except
+     imgFmt := false;
+   end;
+
+   fpe_img.Free;
+
+   if not imgFmt then begin
+      InternalLoadFromStream( AStream, imgRot );
+      Result := true;
+   end;
+
+end;
+
+function TuThumbnailBase.LoadFromFile(const AFileName: UnicodeString; const AAutoRotate: boolean): boolean;
+  var stream : TFileStream;
+begin
+   stream := TFileStream.Create( UTF8Encode( AFileName ), fmOpenRead or fmShareDenyNone );
+   Result := LoadFromStream( stream, AAutoRotate );
+   stream.Free;
+end;
+
+{ TuMagickThumbnail }
+
+procedure TuMagickThumbnail.Initialize();
+begin
+   inherited Initialize;
+   fMagickFile      := '';
+   fTempFolder      := '';
+end;
+
+procedure TuMagickThumbnail.LoadFromPdfFile(const AFileName: UnicodeString; const APageNr: integer );
+  var tmpFile : UTF8String;
+      BmpX    : TBGRABitmap;
+begin
+   if fTempFolder = '' then begin
+      fTempFolder := UnicodeString( GetTempDir() );
+   end;
+
+   if fMagickFile = '' then
+      raise Exception.Create( '"Magick.exe" full name not defined' );
+
+   if not FileExists( fMagickFile ) then
+      raise Exception.Create( '"Magick.exe" not found' );
+
+   tmpFile := GetTempFileName( UTF8Encode( fTempFolder ), 'PNG' );
+   if RunCommand( UTF8Encode( fMagickFile ),
+                 [ Format( '%s[%d]', [ AFileName, APageNr-1 ] ),
+                   '-verbose',
+                   '-resize',
+                   Format( '%dx%d>', [ fMaxWidth, fMaxHeight ] ),
+                   'PNG:' + tmpFile
+                 ], fStatusStr, [], swoHIDE )
+   then begin
+      BmpX := TBGRABitmap.Create( UTF8Encode( tmpFile ), true );
+      fPng.Assign( BmpX.Bitmap );
+      BmpX.Free;
+
+   end;
+   DeleteFile( tmpFile );
+end;
+
+procedure TuPdfThumbnail.Initialize;
+begin
+   inherited Initialize;
+   fPDFiumDllFile := '';
+   fDocFileName   := '';
+   fDoc           := nil;
+   fPageCount     := -1;
+end;
+
+destructor TuPdfThumbnail.Destroy;
+begin
+   fDoc.Free;
+   inherited Destroy;
+end;
+
+function TuPdfThumbnail.OpenPdf(const AFileName: UnicodeString): boolean;
+  const PDFiumDLL = 'pdfium.dll';
+  const ErrorStr = '"'+PDFiumDLL+'" not found';
+begin
+   if fPDFiumDllFile = '' then begin
+      fPDFiumDllFile := LookForFile( PDFiumDLL, true, [ '.' ] ) ;
+      if fPDFiumDllFile = '' then begin
+         DoOnLog( ErrorStr );
+         raise Exception.Create( ErrorStr );
+
+      end;
+      PdfiumCore.PDFiumDllFileName := fPDFiumDllFile;
+   end;
+
+   if fDoc <> nil then begin
+      FreeAndNil( fDoc );
+      fDocFileName := '';
+   end;
+
+   fDoc := TPdfDocument.Create();
+   fDoc.LoadFromFile( AFileName );
+   fPageCount   := fDoc.PageCount;
+   fDocFileName := AFileName;
+   Result := true;
+end;
+
+
+procedure TuPdfThumbnail.DisplayLastError();
+  var n  : integer;
+      tx : string;
+begin
+   n := FPDF_GetLastError();
+   if n <> FPDF_ERR_SUCCESS then begin
+      case n of
+         FPDF_ERR_UNKNOWN   {1} : tx := 'Unknown error';
+         FPDF_ERR_FILE      {2} : tx := 'File not found or could not be opened';
+         FPDF_ERR_FORMAT    {3} : tx := 'File not in PDF format or corrupted';
+         FPDF_ERR_PASSWORD  {4} : tx := 'Password required or incorrect password';
+         FPDF_ERR_SECURITY  {5} : tx := 'Unsupported security scheme';
+         FPDF_ERR_PAGE      {6} : tx := 'Page not found or content error';
+         FPDF_ERR_XFALOAD   {7} : tx := 'Load XFA error';
+         FPDF_ERR_XFALAYOUT {8} : tx := 'Layout XFA error';
+         else                     tx := 'Undefined error';
+      end;
+      DoOnLog( 'Error: %s (%d)', [ tx, n ] );
+   end else begin
+      DoOnLog( 'No error' );
+   end;
+end;
+
+
+procedure TuPdfThumbnail.PngFromPdfBitmap( APdfBitmap: FPDF_BITMAP );
+
+  var stride    : integer;
+      w, h      : integer;
+      buffer, p : pointer;
+      brga      : TBGRABitmap;
+      scan      : pointer;
+      y         : integer;
+
+begin
+   stride := FPDFBitmap_GetStride( APdfBitmap );
+   DoOnLog( 'Bitmap stride: %d', [ stride ] );
+
+   buffer := FPDFBitmap_GetBuffer( APdfBitmap );
+   p      := buffer;
+   w      := FPDFBitmap_GetWidth( APdfBitmap );
+   h      := FPDFBitmap_GetHeight( APdfBitmap );
+
+   brga := TBGRABitmap.Create( w, h );
+   //brga.Fill( ColorToBGRA( clFuchsia, $0F ) );
+   //brga.ReplaceTransparent( ColorToBGRA( clFuchsia, $0F ) );
+   for y:=0 to h-1 do begin
+      scan := brga.ScanLine[ y ];
+      Move( p^, scan^, w*4 );
+      Inc( p, stride )
+   end;
+
+   if fFramed then begin
+      with brga.Canvas do begin
+         Brush.Style := bsSolid;
+         Brush.Color := fFrameColor;
+         FrameRect( 0, 0, w-1, h-1 );
+      end;
+   end;
+   //DoOnLog( 'PNG Transparent=%s', [ BoolToStr( fPng.Transparent, true ) ] );
+   //DoOnLog( 'PNG TransparentMode=%d', [ fPng.TransparentMode ] );
+   fPng.Assign( brga );
+   brga.Free;
+end;
+
+//
+// https://stackoverflow.com/questions/23905169/how-to-convert-pdf-files-to-images
+// https://cpp.hotexamples.com/examples/-/-/FPDFBitmap_Create/cpp-fpdfbitmap_create-function-examples.html
+// https://www.appsloveworld.com/csharp/100/20/how-to-convert-pdf-files-to-images
+//
+function TuPdfThumbnail.TryRenderPage(const APageNr: integer): boolean;
+
+  var wt, ht : integer;
+      //omega  : single;
+      page   : FPDF_PAGE;
+      pgDim  : FS_SIZEF;
+      fpbmp  : FPDF_BITMAP;
+      matrix : FS_MATRIX;
+      clipping: FS_RECTF;
+begin
+   // Function: FPDF_LoadPage
+   //          Load a page inside the document.
+   // Parameters:
+   //          document    -   Handle to document. Returned by FPDF_LoadDocument
+   //          page_index  -   Index number of the page. 0 for the first page.
+   // Return value:
+   //          A handle to the loaded page, or NULL if page load fails.
+   // Comments:
+   //          The loaded page can be rendered to devices using FPDF_RenderPage.
+   //          The loaded page can be closed using FPDF_ClosePage.
+   page   := FPDF_LoadPage( fDoc.Handle, APageNr );
+   Result := Assigned( page );
+   if not Result then begin
+      DisplayLastError();
+      exit;
+   end;
+
+   //
+   // FPDF_GetPageSizeByIndexF: function(document: FPDF_DOCUMENT; page_index: Integer; size: PFS_SIZEF): FPDF_BOOL; {$IFDEF DLLEXPORT}stdcall{$ELSE}cdecl{$ENDIF};   // Experimental API.
+   //
+   // Function: FPDF_GetPageSizeByIndexF
+   //          Get the size of the page at the given index.
+   // Parameters:
+   //          document    -   Handle to document. Returned by FPDF_LoadDocument().
+   //          page_index  -   Page index, zero for the first page.
+   //          size        -   Pointer to a FS_SIZEF to receive the page size.
+   //                          (in points).
+   // Return value:
+   //          Non-zero for success. 0 for error (document or page not found).
+   Result := (FPDF_GetPageSizeByIndexF( fDoc.Handle, APageNr, @pgDim ) > 0);
+   if not Result then begin
+      DisplayLastError();
+      exit;
+   end;
+   DoOnLog( 'Page size: (%f x %f)', [ pgDim.width, pgDim.height ] );
+
+   DimensionResize( Round( pgDim.width ), Round( pgDim.height ), wt, ht );
+   DoOnLog( 'thumb size: (%d x %d)', [ wt, ht ] );
+
+   //omega := wt/pgDim.width;
+   //DoOnLog( 'omega: width=%f, ht=%f', [ omega, ht/pgDim.height ] );
+
+   //-------------------------------------------------------------------------------------------------------
+   // Function: FPDFBitmap_CreateEx
+   //          Create a device independent bitmap (FXDIB)
+   // Parameters:
+   //          width       -   The number of pixels in width for the bitmap. Must be greater than 0.
+   //          height      -   The number of pixels in height for the bitmap. Must be greater than 0.
+   //          format      -   A number indicating for bitmap format, as defined above.
+   //          first_scan  -   A pointer to the first byte of the first line if using an external buffer.
+   //                          If this parameter is NULL, then the a new buffer will be created.
+   //          stride      -   Number of bytes for each scan line. The value must be 0 or greater.
+   //                          When the value is 0, FPDFBitmap_CreateEx() will automatically calculate
+   //                          the appropriate value using |width| and |format|.
+   //                          When using an external buffer, it is recommended for the caller to pass in the value.
+   //                          When not using an external buffer, it is recommended for the caller to pass in 0.
+   // Return value:
+   //          The bitmap handle, or NULL if parameter error or out of memory.
+   // Comments:
+   //          Similar to FPDFBitmap_Create function, but allows for more formats and an external buffer
+   //          is supported. The bitmap created by this function can be used in any place that a FPDF_BITMAP
+   //          handle is required.
+   //          If an external buffer is used, then the caller should destroy the buffer.
+   //          FPDFBitmap_Destroy() will not destroy the buffer.
+   //          It is recommended to use FPDFBitmap_GetStride() to get the stride
+   //          value.
+   //-------------------------------------------------------------------------------------------------------
+   fpbmp := FPDFBitmap_CreateEx( wt, ht, FPDFBitmap_BGRA, nil, 0 );
+   Result := Assigned( fpbmp );
+   if not Result then begin
+      DisplayLastError();
+      exit;
+   end;
+   DoOnLog( 'Bitmap size: (%d x %d), stride=%d, format=%d', [ FPDFBitmap_GetWidth( fpbmp ), FPDFBitmap_GetHeight( fpbmp ),
+                                        FPDFBitmap_GetStride( fpbmp ), FPDFBitmap_GetFormat( fpbmp ) ] );
+
+   FPDFBitmap_FillRect( fpbmp, 0, 0, wt, ht, $00FF00FF );
+
+   matrix := Default( FS_MATRIX );
+   matrix.a := wt/pgDim.width;
+   matrix.d := ht/pgDim.width;
+
+   with clipping do begin
+      left   := 0;
+      top    := 0;
+      bottom := ht;
+      right  := wt;
+   end;
+
+   //-------------------------------------------------------------------------------------------------------
+   // Function: FPDF_RenderPageBitmapWithMatrix
+   //          Render contents of a page to a device independent bitmap.
+   // Parameters:
+   //          bitmap      -   Handle to the device independent bitmap (as the output buffer).
+   //                          The bitmap handle can be created by FPDFBitmap_Create or retrieved by
+   //                          FPDFImageObj_GetBitmap.
+   //          page        -   Handle to the page. Returned by FPDF_LoadPage.
+   //          matrix      -   The transform matrix, which must be invertible.
+   //                          See PDF Reference 1.7, 4.2.2 Common Transformations.
+   //          clipping    -   The rect to clip to in device coords.
+   //          flags       -   0 for normal display, or combination of the Page Rendering flags defined above.
+   //                          With the FPDF_ANNOT flag, it renders all annotations that do not require
+   //                          user-interaction, which are all annotations except widget and popup annotations.
+   // Return value:
+   //          None. Note that behavior is undefined if det of |matrix| is 0.
+   //-------------------------------------------------------------------------------------------------------
+   FPDF_RenderPageBitmapWithMatrix( fpbmp, page, @matrix, @clipping, 0 );
+
+   PngFromPdfBitmap( fpbmp );
+
+   FPDFBitmap_Destroy( fpbmp );
+
+end;
+
+procedure TuPdfThumbnail.ThumbnailForPage(const APageNr: integer);
+begin
+   if (APageNr > 0) and (APageNr <= fPageCount ) then begin
+      if not TryRenderPage( APageNr-1 )
+         then raise Exception.CreateFmt( 'Error on page [%d]', [ APageNr ] );
+   end else raise Exception.CreateFmt( 'Page [%d] out of range', [ APageNr ] );
+end;
+
+end.
+
