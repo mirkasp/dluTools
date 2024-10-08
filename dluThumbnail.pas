@@ -47,7 +47,7 @@ type TuThumbnail = class
        function SizeNormalization( const SrcWidth, SrcHeight: integer ): TImgSize; overload;
        function SizeNormalization( const SrcSize : TImgSize ): TImgSize; overload;
        function InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation; const AThumbMode: TThumbMode ): boolean;
-       procedure ConvertToPng( ABitmap: TBGRABitmap );
+       procedure ConvertToPng( ABitmap: TBGRABitmap; const AThumbMode: TThumbMode );
     public
        class function IsPfdExtension( const xFileName: AnsiString ): boolean; overload;
        class function IsPfdExtension( const xFileName: UnicodeString ): boolean; overload;
@@ -72,11 +72,9 @@ type TuThumbnail = class
        property Height    : integer                 read GetPngHeight;
        //
        property OnLog         : TGetStrProc         read fOnLog         write fOnLog;
-       //property Framed    : boolean                 read fFramed        write fFramed;
        property FrameMode     : TFrameMode          read fFrameMode     write fFrameMode;
        property FrameColorInt : TColor              read fFrameColorInt write fFrameColorInt;
        property FrameColorGen : TColor              read fFrameColorGen write fFrameColorGen;
-       //property FrameColor    : TColor              read fFrameColor    write fFrameColor;
        property ThumbMode     : TThumbMode          read fThumbMode;
  end;
 
@@ -211,44 +209,56 @@ end;
 function TuThumbnail.InternalLoadFromStream( AStream: TStream; const AOrientation: TExifOrientation; const AThumbMode: TThumbMode ): boolean;
   var DstSize : TImgSize;
       BmpX    : TBGRABitmap;
-      tmp     : TBGRABitmap;
-      tmp1    : TBGRABitmap;
+      tmp1    : TBGRABitmap = nil;
 begin
    AStream.Position := 0;
 
    Result  := false;
    BmpX    := TBGRABitmap.Create( AStream );
-   DstSize := SizeNormalization( TImgSize.Create( BmpX.Width, BmpX.Height ) );
+
    try
+      // de-rotation
+      // https://sirv.com/help/articles/rotate-photos-to-be-upright/
+      // http://sylvana.net/jpegcrop/exif_orientation.html
+      //
+      //     +-------+------------+------------+
+      //     | Value | 0th Row    | 0th Column |
+      //     +-------+------------+------------+
+      //     |   1   | top        | left side  |
+      //     |   2   | top        | right side |
+      //     |   3   | bottom     | right side |
+      //     |   4   | bottom     | left side  |
+      //     |   5   | left side  | top        |
+      //     |   6   | right side | top        |
+      //     |   7   | right side | bottom     |
+      //     |   8   | left side  | bottom     |
+      //     +-------+------------+------------+
+      //
 
-      tmp := BmpX.Resample( DstSize.Width, DstSize.Height, rmFineResample ) as TBGRABitmap;
-
-      DoOnLog( 'Image orientation: %d', [ Ord( AOrientation ) ] );
-      if AOrientation in [ eoRotate90, eoRotate180, eoRotate270 ] then begin
-         // de-rotation
-         case AOrientation of
-            eoRotate90  : tmp1 := tmp.RotateCW;
-            eoRotate180 : tmp1 := tmp.RotateCCW;
-            eoRotate270 : tmp1 := tmp.RotateUD;
-            else          tmp1 := tmp.Duplicate();
-         end;
-         tmp.Assign( tmp1.Bitmap );
-         tmp1.Free;
+      case AOrientation of
+         eoRotate90  : tmp1 := BmpX.RotateCW();
+         eoRotate180 : tmp1 := BmpX.RotateUD();
+         eoRotate270 : tmp1 := BmpX.RotateCCW();
+         else          tmp1 := BmpX.Duplicate();
       end;
 
-      fThumbMode := AThumbMode;
+      DstSize := SizeNormalization( TImgSize.Create( tmp1.Width, tmp1.Height ) );
 
-      ConvertToPng( tmp );
+      BmpX.Free;
+      BmpX := tmp1.Resample( DstSize.Width, DstSize.Height, rmSimpleStretch ) as TBGRABitmap;
+      tmp1.Free;
 
-      tmp.Free;
+      ConvertToPng( BmpX, AThumbMode );
+
       Result := true;
    except
-     on E: Exception do DoOnLog( 'Error: %s', [ E.Message ] );
+      on E: Exception do DoOnLog( 'Error: %s', [ E.Message ] );
    end;
+
    BmpX.Free;
 end;
 
-procedure TuThumbnail.ConvertToPng( ABitmap: TBGRABitmap );
+procedure TuThumbnail.ConvertToPng( ABitmap: TBGRABitmap; const AThumbMode: TThumbMode );
 
    function ColorForCustomFrameMode( const AThumbMode: TThumbMode ): TColor;
    begin
@@ -261,6 +271,8 @@ procedure TuThumbnail.ConvertToPng( ABitmap: TBGRABitmap );
 
   var lColor : TColor;
 begin
+   fThumbMode := AThumbMode;
+
    case fFrameMode of
       fm_auto    : lColor := FRAME_AUTO_COLORS[ fThumbMode ];
       fm_custom  : lColor := ColorForCustomFrameMode( fThumbMode );
@@ -338,7 +350,6 @@ end;
 
 
 function TuThumbnail.LoadFromStream(AStream: TStream; const AAutoRotate: boolean): boolean;
- //const acThumbMode: array[ boolean ] of TThumbMode = ( tm_gen, tm_int );
   var mini   : TMemoryStream;
       fpe_img: fpeMetadata.TImgInfo;
       imgRot : TExifOrientation;
@@ -353,6 +364,7 @@ begin
    try
       fpe_img.LoadFromStream( AStream );
       if fpe_img.HasExif and AAutoRotate then imgRot := fpe_img.ExifData.ImgOrientation;
+
       imgFmt := fpe_img.HasThumbnail;
       if imgFmt then begin
          mini := TMemoryStream.Create;
@@ -486,8 +498,7 @@ begin
 
       DstSize := SizeNormalization( pageSize );
       tmp     := Resample( DstSize.Width, DstSize.Height, rmFineResample ) as TBGRABitmap;
-      fThumbMode := tm_gen;
-      ConvertToPng( tmp );
+      ConvertToPng( tmp, tm_gen );
       tmp.Free;
 
       Free;
