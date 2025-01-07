@@ -82,6 +82,7 @@ https://algs4.cs.princeton.edu/24pq/MaxPQ.java.html
 { TuVariableLengthPQ<T> }
 constructor TuVariableLengthPQ<Key>.Create( ACompare: TCompFunc<Key>; const initCapacity: integer);
 begin
+   inherited Create;
    SetLength( fPQ, initCapacity+1 );
    fN       := 0;
    fCompare := ACompare;
