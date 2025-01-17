@@ -8,7 +8,7 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
-        <OtherUnitFiles Value="..;..\..\pdfiumlib\Source"/>
+        <OtherUnitFiles Value=".."/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <CodeGeneration>
@@ -25,6 +25,9 @@
       </Item>
     </Files>
     <RequiredPkgs>
+      <Item>
+        <PackageName Value="Pdfium_package"/>
+      </Item>
       <Item>
         <PackageName Value="BGRABitmapPack"/>
       </Item>
