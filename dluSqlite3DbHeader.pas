@@ -11,6 +11,8 @@
 
 interface
 
+uses Classes;
+
 // https://www.sqlite.org/fileformat2.html#database_header
 
 type TuSDHF = (
@@ -64,14 +66,12 @@ type TuSqlite3DbHeader = class
     function MagicStr(): String;
     function PageSize(): Cardinal;
     function GetValue( const AVal: TuSDHF ): Cardinal;
+    procedure AsStrings( const AStrings: TStrings );
 end;
 
 implementation
 
 uses SysUtils
-   , Classes
-   //, Dialogs
-   //, AppTools
    ;
 
 type UInt1 = Byte;
@@ -387,6 +387,35 @@ begin
       hfVersionNumber       : Result := swapx( PHeader( Buffer )^.VersionNumber );
    else
       raise Exception.Create( 'Illegal numeric argument in GetValue function' );
+   end;
+
+end;
+
+procedure TuSqlite3DbHeader.AsStrings( const AStrings : TStrings) ;
+begin
+   if Assigned( AStrings ) then begin
+      AStrings.AddPair( AnsiString( GetDescStr( hfMagicStr       ) ), AnsiString( GetValueDesc( hfMagicStr       ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfChangeCounter  ) ), AnsiString( GetValueDesc( hfChangeCounter  ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfPageSize       ) ), AnsiString( GetValueDesc( hfPageSize       ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfSizeInPages    ) ), AnsiString( GetValueDesc( hfSizeInPages    ) ) );
+      AStrings.AddPair( 'Text encoding',                              AnsiString( GetValueDesc( hfTextEncoding   ) ) );
+      AStrings.AddPair( 'Format WRITE version',                       AnsiString( GetValueDesc( hfFileFormatW    ) ) );
+      AStrings.AddPair( 'Format READ version',                        AnsiString( GetValueDesc( hfFileFormatR    ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfUnusedSpace    ) ), AnsiString( GetValueDesc( hfUnusedSpace    ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfEmbdPayloadMax ) ), AnsiString( GetValueDesc( hfEmbdPayloadMax ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfEmbdPayloadMin ) ), AnsiString( GetValueDesc( hfEmbdPayloadMin ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfLeafPayload    ) ), AnsiString( GetValueDesc( hfLeafPayload    ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfTP_PageNumber  ) ), AnsiString( GetValueDesc( hfTP_PageNumber  ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfFL_TotalPages  ) ), AnsiString( GetValueDesc( hfFL_TotalPages  ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfSchemaCookie   ) ), AnsiString( GetValueDesc( hfSchemaCookie   ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfSchemaFormat   ) ), AnsiString( GetValueDesc( hfSchemaFormat   ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfPageCacheSize  ) ), AnsiString( GetValueDesc( hfPageCacheSize  ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfLargesRoot     ) ), AnsiString( GetValueDesc( hfLargesRoot     ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfUserVersion    ) ), AnsiString( GetValueDesc( hfUserVersion    ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfIncVacuumMode  ) ), AnsiString( GetValueDesc( hfIncVacuumMode  ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfApplicationID  ) ), AnsiString( GetValueDesc( hfApplicationID  ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfVersion        ) ), AnsiString( GetValueDesc( hfVersion        ) ) );
+      AStrings.AddPair( AnsiString( GetDescStr( hfVersionNumber  ) ), AnsiString( GetValueDesc( hfVersionNumber  ) ) );
    end;
 
 end;
