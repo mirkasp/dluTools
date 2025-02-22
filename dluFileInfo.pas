@@ -10,11 +10,13 @@ unit dluFileInfo;
 
 interface
 
-type
+uses Classes;
+
+type TPEType = (pe_unknown, pe_32bit, pe_64bit );
+const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
 
 { TFileVersionInfo }
-
- TFileVersionInfo = record
+type TFileVersionInfo = record
     public
        FileName         : string;
        //
@@ -55,25 +57,22 @@ type
        constructor Create( const AFileName: String );
        procedure ReadFileVersionInfo( const AFileName: string );
        procedure Clear();
+       procedure AsString( const AStrings: TStrings );
     strict private
        function ReadStdFileInfo(): boolean;
        //
-  end;
+end;
 
 function GetFileInfo( const AFileName: string = '' ): TFileVersionInfo;
 
 // alternative version - only for version info
 function GetFileVersion( const AFileName: string = '' ): string;
 
-type TPEType = (pe_unknown, pe_32bit, pe_64bit );
-const cPEType: array[ TPEType ] of string = ( 'unknown', '32-bit', '64-bit' );
-
 function GetPEType( const APath: UnicodeString ): TPEType; overload;
 function GetPEType( const APath: AnsiString ): TPEType; overload;
 
 function GetPETypeStr( const APath: UnicodeString ): UnicodeString; overload;
 function GetPETypeStr( const APath: AnsiString ): AnsiString; overload;
-
 
 function AttrWin32( const x: Cardinal ): string;
 
@@ -273,6 +272,32 @@ begin
     PrivateBuild     := False;
     InfoInferred     := False;
   end;
+
+end;
+
+procedure TFileVersionInfo.AsString( const AStrings : TStrings) ;
+begin
+   if IsVersionInfo then begin
+
+      AStrings.AddPair( 'File Type',          AnsiString( self.FileType + ' ' + GetPETypeStr( self.FileName ) ) );
+      AStrings.AddPair( 'File Function',      AnsiString( self.FileFunction     ) );
+      AStrings.AddPair( 'File Exe Type',      AnsiString( self.FileExeType      ) );
+      AStrings.AddPair( 'Company Name',       AnsiString( self.CompanyName      ) );
+      AStrings.AddPair( 'File Description',   AnsiString( self.FileDescription  ) );
+      AStrings.AddPair( 'File Version',       AnsiString( self.FileVersion      ) );
+      AStrings.AddPair( 'Internal Name',      AnsiString( self.InternalName     ) );
+      AStrings.AddPair( 'Legal CopyRight',    AnsiString( self.LegalCopyRight   ) );
+      AStrings.AddPair( 'Legal TradeMarks',   AnsiString( self.LegalTradeMarks  ) );
+      AStrings.AddPair( 'Original File Name', AnsiString( self.OriginalFileName ) );
+      AStrings.AddPair( 'Product Name',       AnsiString( self.ProductName      ) );
+      AStrings.AddPair( 'Product Version',    AnsiString( self.ProductVersion   ) );
+      AStrings.AddPair( 'Comments',           AnsiString( self.Comments         ) );
+      AStrings.AddPair( 'Special BuildStr',   AnsiString( self.SpecialBuildStr  ) );
+      AStrings.AddPair( 'Private BuildStr',   AnsiString( self.PrivateBuildStr  ) );
+   end else
+      AStrings.AddPair( 'Version info', '--- not available'    );
+
+
 
 end;
 
