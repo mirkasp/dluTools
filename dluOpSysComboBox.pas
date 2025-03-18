@@ -7,11 +7,9 @@ interface
 uses EditBtn
    , dluMultiColsComboBox;
 
-type
 
 { TOpSysComboBox }
-
- TOpSysComboBox = class( TMultiColsComboBox )
+type TOpSysComboBox = class( TMultiColsComboBox )
    public
      constructor Create( AEditButton: TEditButton );
 end;
@@ -25,11 +23,13 @@ uses dluWinVer3;
 constructor TOpSysComboBox.Create(AEditButton: TEditButton);
   var dx : TDynStringArray = nil;
       i  : integer;
+      wv : TWinVerSpec;
 begin
-   AEditButton.Text  := String(dluWinVer3.AppWinVer.Name) + ' [' + String(dluWinVer3.AppWinVer.CompilationInfo) + ']';
+   wv := dluWinVer3.GetAppWinVer();
+   AEditButton.Text  := String( wv.Name) + ' [' + String( wv.CompilationInfo) + ']';
 
-   SetLength( dx, dluWinVer3.AppWinVer.AllProperties.Count * 2 );
-   with dluWinVer3.AppWinVer.AllProperties do
+   SetLength( dx, wv.AllProperties.Count * 2 );
+   with wv.AllProperties do
       for i := 0 to Count-1 do begin
          dx[ 2*i    ] := Names[ i ];
          dx[ 2*i +1 ] := ValueFromIndex[ i ];
