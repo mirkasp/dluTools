@@ -105,12 +105,15 @@ type
 
 end;
 
-
-var AppWinVer : TWinVerSpec;
+function GetAppWinVer(): TWinVerSpec;
 
 implementation
 
 uses Windows, SysUtils, Registry, dluDictionary;
+
+(******************************************************************************)
+var AppWinVer : TWinVerSpec = nil;
+(******************************************************************************)
 
 const cLib_Kernel32 = 'Kernel32.dll';
 const cLib_Ntdll    = 'ntdll.dll';
@@ -404,6 +407,12 @@ end;
 var ArchitectureDict : IuDictionary;
 var SuiteDict        : IuDictionary;
 var ProductDict      : IuDictionary;
+
+function GetAppWinVer(): TWinVerSpec;
+begin
+   if not Assigned( AppWinVer ) then AppWinVer := TWinVerSpec.Create;
+   Result := AppWinVer;
+end;
 
 constructor TWinVerSpec.Create;
 begin
@@ -763,6 +772,8 @@ const cStorageServer = 'Storage Server';
 const cUltimate      = 'Ultimate Edition';
 const cWebServer     = 'Web Server';
 const cMultipoint    = 'Multipoint';
+
+
 initialization
 
     ArchitectureDict := TuxDictionary.Create();
@@ -933,7 +944,6 @@ initialization
 
       Add( (* $ABCDABCD *) PRODUCT_UNLICENSED,                          'Unlicensed'                                  );
     end;
-    AppWinVer := TWinVerSpec.Create;
 
 finalization
 
