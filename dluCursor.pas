@@ -7,14 +7,6 @@ unit dluCursor;
 
 {$I dluOptions.inc}
 
-//{$IFNDEF FPC}
-//  {$IFDEF CONDITIONALEXPRESSIONS}
-//     {$IF CompilerVersion >= 21.0}
-//        {$DEFINE dlu_Generics}
-//     {$IFEND}
-//  {$ENDIF}
-//{$ENDIF}
-
 interface
 
 uses Controls;
@@ -54,6 +46,6 @@ end;
 
 
 finalization
-  if Assigned( CurStack ) then CurStack.Free;
+   if Assigned( CurStack ) then CurStack.Free;
 
 end.
