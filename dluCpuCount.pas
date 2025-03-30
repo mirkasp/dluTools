@@ -8,8 +8,10 @@ Note: The function definition used below for FPsysctl() is for FPC v3.0.4
       For FPC v3.2.0 and v3.3.1 (trunk) the first argument is no longer pchar but pcint.
       Adjust the code example accordingly.
 
-Version 0.1   2021.05.02
-+ initial, direct copy from webpage
+History:
+2025.03.29 + GetLogicalCpuCountStr added
+2021.05.02 + initial, direct copy from webpage
+
 *******************************************************************************)
 {$mode objfpc}{$H+}
 
@@ -18,10 +20,13 @@ interface
 //returns number of cores: a computer with two hyperthreaded cores will report 4
 function GetLogicalCpuCount: Integer;
 
+//
+function GetLogicalCpuCountStr( const IsPolish: boolean = false ): string;
+
 implementation
 
 {$IF defined(windows)}
-uses windows;
+uses Windows, SysUtils;
 {$endif}
 
 {$IF defined(darwin)}
@@ -36,7 +41,7 @@ function sysconf(i: cint): clong; cdecl; external name 'sysconf';
 {$ENDIF}
 
 
-function GetLogicalCpuCount: integer;
+function GetLogicalCpuCount: Integer;
 // returns a good default for the number of threads on this system
 {$IF defined(windows)}
   //returns total number of processors available to system including logical hyperthreaded processors
@@ -62,6 +67,7 @@ begin
       Result := SystemInfo.dwNumberOfProcessors;
    end;
 end;
+
 {$ELSEIF defined(UNTESTEDsolaris)}
 begin
    t = sysconf(_SC_NPROC_ONLN);
@@ -86,4 +92,31 @@ begin
    Result := 1;
 end;
 {$ENDIF}
+
+
+function PL_ProcLogStr( const n: integer ): string;
+  const aProcSuffix : array[0..2] of string = ( '',  'y', 'ów'  );
+        aLogiSuffix : array[0..2] of string = ( 'y', 'e', 'ych' );
+  var i : integer;
+begin
+   if n > 0 then begin
+      case n of
+         1    : i := 0;
+         2..4 : i := 1;
+         else   i := 2;
+      end;
+      Result := Format( 'procesor%s logiczn%s', [ aProcSuffix[ i ], aLogiSuffix[ i ] ] );
+   end else
+      Result := 'proc. log.';
+   Result := Format( '%d %s', [ n, Result ] );
+end;
+
+
+function GetLogicalCpuCountStr(const IsPolish: boolean): string;
+begin
+   if IsPolish
+      then Result := PL_ProcLogStr( GetLogicalCpuCount() )
+      else Result := Format( '%d logical CPU', [ GetLogicalCpuCount() ] );
+end;
+
 end.
