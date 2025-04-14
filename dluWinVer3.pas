@@ -123,12 +123,15 @@ const VER_NT_DOMAIN_CONTROLLER                    = 2;
 const VER_NT_SERVER                               = 3;
 
 // ProcessorArchitecture
-const PROCESSOR_ARCHITECTURE_INTEL                = $0000;    // x86
-const PROCESSOR_ARCHITECTURE_ARM                  = $0005;    // ARM
-const PROCESSOR_ARCHITECTURE_IA64                 = $0006;    // Intel Itanium-based
-const PROCESSOR_ARCHITECTURE_AMD64                = $0009;    // x64 (AMD or Intel)
-const PROCESSOR_ARCHITECTURE_ARM64                = $000C;    // ARM64
-const PROCESSOR_ARCHITECTURE_UNKNOWN              = $FFFF;    // Unknown architecture.
+// https://learn.microsoft.com/en-us/uwp/api/windows.system.processorarchitecture?view=winrt-26100
+const PROCESSOR_ARCHITECTURE_X86                  = $0000;    // The x86 processor architecture.
+const PROCESSOR_ARCHITECTURE_ARM                  = $0005;    // The ARM processor architecture.
+const PROCESSOR_ARCHITECTURE_IA64                 = $0006;    // Intel Itanium-based  architecture.
+const PROCESSOR_ARCHITECTURE_X64                  = $0009;    // The x64 processor architecture (AMD or Intel).
+const PROCESSOR_ARCHITECTURE_NEUTRAL              = $000B;    // A neutral processor architecture.
+const PROCESSOR_ARCHITECTURE_ARM64                = $000C;    // The Arm64 processor architecture
+const PROCESSOR_ARCHITECTURE_X86ONARM64           = $000E;    // The Arm64 processor architecture emulating the X86 architecture
+const PROCESSOR_ARCHITECTURE_UNKNOWN              = $FFFF;    // An unknown processor architecture.
 
 // Suite mask (wStiteMask)
 const VER_SUITE_SMALLBUSINESS                     = $00000001;
@@ -142,6 +145,7 @@ const VER_SUITE_DATACENTER                        = $00000080;
 const VER_SUITE_SINGLEUSERTS                      = $00000100;
 const VER_SUITE_PERSONAL                          = $00000200;
 const VER_SUITE_BLADE                             = $00000400;
+
 const VER_SUITE_EMBEDDED_RESTRICTED               = $00000800;
 const VER_SUITE_SECURITY_APPLIANCE                = $00001000;
 const VER_SUITE_STORAGE_SERVER                    = $00002000;
@@ -276,6 +280,7 @@ const PRODUCT_ENTERPRISE_S_EVALUATION             = $00000081;
 const PRODUCT_ENTERPRISE_S_N_EVALUATION           = $00000082;
 const PRODUCT_HOLOGRAPHIC                         = $00000087;
 const PRODUCT_HOLOGRAPHIC_BUSINESS                = $00000088;
+const PRODUCT_SERVERRDSH                          = $000000AF;     // + 2025.03.30
 
 type UCHAR  = Byte;
 type USHORT = Word;
@@ -383,20 +388,6 @@ begin
      end;
 end;
 
-
-//function GetArchitectureAsText( const AProcessorArchitecture: Word ): WideString;
-//begin
-//   case AProcessorArchitecture of
-//      PROCESSOR_ARCHITECTURE_INTEL   : Result := '32-bit';
-//      PROCESSOR_ARCHITECTURE_ARM     : Result := 'ARM';
-//      PROCESSOR_ARCHITECTURE_IA64    : Result := 'Intel Itanium-based';
-//      PROCESSOR_ARCHITECTURE_AMD64   : Result := '64-bit';
-//      PROCESSOR_ARCHITECTURE_ARM64   : Result := 'ARM64';
-//      PROCESSOR_ARCHITECTURE_UNKNOWN : Result := 'Unknown architecture';
-//      else Result := 'Unknown value (' + IntToStr(AProcessorArchitecture) {%H-}+ ')';
-//   end;
-//end;
-
 function UnknownSystem( const AText: WideString; AParam: TuOSVersionInfoExW ): WideString;
 begin
    with AParam do begin
@@ -404,9 +395,11 @@ begin
    end;
 end;
 
-var ArchitectureDict : IuDictionary;
-var SuiteDict        : IuDictionary;
-var ProductDict      : IuDictionary;
+var LocProcArchDict : IuDictionary = nil;
+var SuiteDict       : IuDictionary = nil;
+var ProductDict     : IuDictionary = nil;
+
+function GetArchitectureDict(): IuDictionary; forward;
 
 function GetAppWinVer(): TWinVerSpec;
 begin
@@ -441,11 +434,6 @@ begin
    fLang         := GetLocaleInformation( LOCALE_SABBREVCTRYNAME );
    AppendToName( fLang );
 
-   //fTechnicalInfo:= {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d, platform=%d, csd="%s", SP=%d.%d, suite=0x%s, product_type=%d, product_info=%d, lang="%s"',
-   //                               [ fMajorVersion, fMinorVersion, fBuildNumber, fPlatformId,
-   //                                 fCSDVersion, fServicePackMajor, fServicePackMinor,
-   //                                 IntToHex( fSuiteMask, 2*SizeOf(fSuitemask) ), fProductType, fProductInfo, fLang ] );
-
    fTechnicalInfo:= {$IFDEF FPC}WideFormat{$ELSE}Format{$ENDIF}( '%d.%d.%d, platform=%d, csd="%s", SP=%d.%d, suite=0x%s, product_type=%d, product_info=%d, lang="%s"',
                                   [ fMajorVersion, fMinorVersion, fBuildNumber, fPlatformId,
                                     fCSDVersion, fServicePackMajor, fServicePackMinor,
@@ -463,9 +451,13 @@ begin
       AddPair( 'ServicePackMajor',       IntToStr( fServicePackMajor ) );
       AddPair( 'ServicePackMinor',       IntToStr( fServicePackMinor ) );
       AddPair( 'SuiteMask',              IntToStr( fSuiteMask ) );
-      AddPair( 'ProcessorArchitecture',  IntToStr( fProcessorArchitecture ) );
+      AddPair( 'ProcessorArchitecture',  Format( '%d [%s]',
+                                                 [ fProcessorArchitecture,
+                                                   GetArchitectureDict().Value( fProcessorArchitecture ) ] ) );
       AddPair( 'ProductType',            IntToStr( fProductType ) );
-      AddPair( 'ProductInfo',            IntToStr( fProductInfo) );
+      AddPair( 'ProductInfo',            Format( '%d [%s]',
+                                                 [ fProductInfo,
+                                                   ProductDict.Value( fProductInfo) ] ) );
       AddPair( 'MediaCenter',            IntToStr( Integer( fMediaCenter )));
       AddPair( 'TabletPC',               IntToStr( Integer( fTabletPC )) );
       AddPair( 'Suites',                 fSuites.Text );
@@ -505,15 +497,14 @@ end;
 function TWinVerSpec.GetWindowsRelease: UnicodeString;
 begin
    Result := '';
-   // https://learn.microsoft.com/en-us/windows/release-health/release-information
    // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
    if (fMajorVersion = 10) and (fMinorVersion = 0) and (fProductType = VER_NT_WORKSTATION) then begin
         case fBuildNumber of
            // windows 11
-           22000 : Result := '21H2';
-           22621 : Result := '22H2';
-           22631 : Result := '23H2';
            26100 : Result := '24H2';
+           22631 : Result := '23H2';
+           22621 : Result := '22H2';
+           22000 : Result := '21H2';
            // windows 10
            19045 : Result := '22H2';
            19044 : Result := '21H2';
@@ -678,7 +669,7 @@ begin
       fMediaCenter := GetSystemMetrics( SM_MEDIACENTER ) <> 0;
       fTabletPC    := GetSystemMetrics( SM_TABLETPC ) <> 0;
 
-      AppendToName( ArchitectureDict.Value( fProcessorArchitecture ) );
+      AppendToName( GetArchitectureDict().Value( fProcessorArchitecture ) );
       AppendToNameIf( fMediaCenter, 'Media Center', '' );
       AppendToNameIf( fTabletPC, 'Tablet PC', '' );
 
@@ -761,6 +752,24 @@ begin
    end;
 end;
 
+function GetArchitectureDict(): IuDictionary;
+begin
+   if not Assigned( LocProcArchDict ) then begin
+       LocProcArchDict := TuxDictionary.Create();
+       with LocProcArchDict do begin
+          Add( PROCESSOR_ARCHITECTURE_X86,         '32-bit' );
+          Add( PROCESSOR_ARCHITECTURE_ARM,         'ARM' );
+          Add( PROCESSOR_ARCHITECTURE_IA64,        'Intel Itanium-based' );
+          Add( PROCESSOR_ARCHITECTURE_X64,         '64-bit' );
+          Add( PROCESSOR_ARCHITECTURE_NEUTRAL,     'NEUTRAL' );
+          Add( PROCESSOR_ARCHITECTURE_ARM64,       'ARM64' );
+          Add( PROCESSOR_ARCHITECTURE_X86ONARM64,  'ARM64_Emu_X86' );
+          Add( PROCESSOR_ARCHITECTURE_UNKNOWN,     'UNKNOWN' );
+       end;
+   end;
+   Result := LocProcArchDict;
+end;
+
 const cProfessional  = 'Professional';
 const cBusiness      = 'Business Edition';
 const cEnterpriseEd  = 'Enterprise Edition';
@@ -773,18 +782,7 @@ const cUltimate      = 'Ultimate Edition';
 const cWebServer     = 'Web Server';
 const cMultipoint    = 'Multipoint';
 
-
 initialization
-
-    ArchitectureDict := TuxDictionary.Create();
-    with ArchitectureDict do begin
-      Add( PROCESSOR_ARCHITECTURE_INTEL,   '32-bit' );
-      Add( PROCESSOR_ARCHITECTURE_ARM,     'ARM' );
-      Add( PROCESSOR_ARCHITECTURE_IA64,    'Intel Itanium-based' );
-      Add( PROCESSOR_ARCHITECTURE_AMD64,   '64-bit' );
-      Add( PROCESSOR_ARCHITECTURE_ARM64,   'ARM64' );
-      Add( PROCESSOR_ARCHITECTURE_UNKNOWN, 'Unknown architecture' );
-   end;
 
     SuiteDict := TuxDictionary.Create();
     with SuiteDict do begin
@@ -941,6 +939,8 @@ initialization
       Add( (* $00000082 *) PRODUCT_ENTERPRISE_S_N_EVALUATION,           'ENTERPRISE_S_N_EVALUATION'                   );
       Add( (* $00000087 *) PRODUCT_HOLOGRAPHIC,                         'HOLOGRAPHIC'                                 );
       Add( (* $00000088 *) PRODUCT_HOLOGRAPHIC_BUSINESS,                'HOLOGRAPHIC BUSINESS'                        );
+
+      Add( (* $000000AF *) PRODUCT_SERVERRDSH,                          'SERVER RDSH'                        );
 
       Add( (* $ABCDABCD *) PRODUCT_UNLICENSED,                          'Unlicensed'                                  );
     end;
