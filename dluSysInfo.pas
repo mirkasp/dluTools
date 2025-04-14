@@ -36,14 +36,13 @@ uses Windows
    , SysUtils
 {$IFDEF FPC}
   {$IFDEF UNIX}{$IFDEF UseCThreads}, cthreads {$ENDIF}{$ENDIF}
-  , Dialogs
+  //, Dialogs
   , Classes
   // FPC 3.0 fileinfo reads exe resources as long as you register the appropriate units
   //, fileinfo
-  , winpeimagereader {need this for reading exe info}
-  , elfreader        {needed for reading ELF executables}
-  , machoreader      {needed for reading MACH-O executables}
-
+  //, winpeimagereader {need this for reading exe info}
+  //, elfreader        {needed for reading ELF executables}
+  //, machoreader      {needed for reading MACH-O executables}
 {$ELSE}
   , mkSysInfo
 {$ENDIF}
@@ -151,19 +150,6 @@ function GetUserInfoShort(): string;
 begin
    Result := GetUserName() + '@' + GetComputerName();
 end;
-
-//function GetProcessorName(): string;
-//begin
-//   with TSMBios.Create do begin
-//      try
-//         if HasProcessorInfo
-//            then Result := String(ProcessorInfo[0].ProcessorVersionStr)
-//            else Result := SysUtils.GetEnvironmentVariable('PROCESSOR_IDENTIFIER' );
-//      finally
-//         Free;
-//      end;
-//   end;
-//end;
 
 function GetFPUinfo(): string;
 //
@@ -275,20 +261,6 @@ begin
    Result := (System.DebugHook <> 0);
    {$WARN SYMBOL_PLATFORM ON}
 {$ENDIF}
-
-
-
-//{$IFDEF MSWINDOWS}
-//   {$IFDEF FPC}
-//   Result := IsDebuggerPresent();
-//   {$ELSE}
-//   {$WARN SYMBOL_PLATFORM OFF}
-//   Result := (System.DebugHook <> 0);
-//   {$WARN SYMBOL_PLATFORM ON}
-//   {$ENDIF}
-//{$ELSE}
-//   Result := false;
-//{$ENDIF}
 end;
 
 end.
