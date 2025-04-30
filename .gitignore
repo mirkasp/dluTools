@@ -4,3 +4,5 @@
 uSMBIOS.pas
 _uSMBIOS.pas
 *.bak
+backup
+lib
