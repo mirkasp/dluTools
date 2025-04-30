@@ -1,6 +1,14 @@
 unit dluSysInfo;
 
-{$I dluOptions.inc}
+{$IFDEF FPC}
+   {$mode OBJFPC}{$H+}
+   {$modeswitch UNICODESTRINGS+}
+
+   {$DEFINE dlu_Generics}
+   {$DEFINE dlu_Unicode}
+{$ELSE}
+   {$MESSAGE HINT 'Tested only for LAZARUS!'}
+{$ENDIF}
 //
 // http://delphiexamples.com/systeminfo/username.html
 //
