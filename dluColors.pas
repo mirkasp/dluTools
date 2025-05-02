@@ -21,11 +21,16 @@ const RndColor : array[ 0..6 ] of integer = ( clPapayaWhip,  clMistyRose, clSeas
                                               clBisque,      clGold,      clPowderBlue,
                                               clLemonChiffon
                                             );
+var xRandom: boolean = false;
 
 
 function GetRandomNxColor(): Integer;
 begin
-  Result := RndColor[ Random( Length( RndColor ) ) ];
+   if not xRandom then begin
+      Randomize;
+      xRandom := true;
+   end;
+   Result := RndColor[ Random( Length( RndColor ) ) ];
 end;
 
 end.
