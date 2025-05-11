@@ -1,4 +1,4 @@
-unit dluLoadLibrary;
+unit lxLoadLibrary;
 
 interface
 
