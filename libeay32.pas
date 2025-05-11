@@ -114,11 +114,11 @@
 
  ******************************************************************************)
 unit libeay32;
-
 interface
 
 {$IFDEF FPC}
    {$mode Delphi}{$H+}
+   {$WARN 3187 off : C arrays are passed by reference}
 {$ENDIF}
 
 const
