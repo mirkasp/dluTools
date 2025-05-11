@@ -20,15 +20,12 @@ function GetAppCaption( const AppShortName: String; const AHideVersion: boolean 
 
 implementation
 
-uses dluSysInfo
-   , dluFileInfo
-//{$IFDEF WINDOWS}
-//   , Windows
-//{$ENDIF}
+uses dluFileInfo
 {$IFNDEF FPC}
    , SysUtils
    //, mkSysInfo
 {$ENDIF}
+   , dluCompilerInfo
    ;
 
 function GetAppCaption( const AppShortName: String; const AOptions: TAppCaptionOptions ): String;
@@ -40,8 +37,8 @@ begin
    if not (apcHideVersion in AOptions) then begin
       Result := Result + ' '
                + acVersionStr[ apcEnglish in AOptions ] + '.' + dluFileInfo.GetFileVersion()
-               + ' [' + dluSysInfo.CompilerVersionAsString()
-               + acInsideIdeStr[ dluSysInfo.InsideIDE() ]
+               + ' [' + dluCompilerInfo.CompilerVersionAsString()
+               + acInsideIdeStr[ dluCompilerInfo.InsideIDE() ]
                + DEBUG_MODE
                + ']';
    end;
