@@ -6,3 +6,4 @@ _uSMBIOS.pas
 *.bak
 backup
 lib
+_*
