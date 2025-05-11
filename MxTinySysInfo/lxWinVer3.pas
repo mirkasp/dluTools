@@ -1,4 +1,4 @@
-﻿unit dluWinVer3;
+﻿unit lxWinVer3;
 
 {$IFDEF FPC}
   {$mode objfpc}{$H+}
@@ -14,7 +14,7 @@
 
 interface
 
-uses Classes, dluLoadLibrary;
+uses Classes, lxLoadLibrary;
 
 type
 
@@ -42,17 +42,17 @@ type
      fSuites               : TStrings;
      fLang                 : WideString;
      //
-     fBuildLab           : string;        // TRegistry_ReadString(Reg, 'BuildLab');
-     fBuildLabEx         : string;        // TRegistry_ReadString(Reg, 'BuildLabEx');
-     fCSDBuildNumber     : string;        // TRegistry_ReadString(Reg, 'CSDBuildNumber');
-     fCSDVersionReg      : string;        // TRegistry_ReadString(Reg, 'CSDVersion');
-     fCurrentBuildNumber : string;        // TRegistry_ReadString(Reg, 'CurrentBuildNumber');
-     fCurrentVersion     : string;        // TRegistry_ReadString(Reg, 'CurrentVersion');
-     fEditionId          : string;        // TRegistry_ReadString(Reg, 'EditionId');
-     fProductName        : string;        // TRegistry_ReadString(Reg, 'ProductName');
-     fReleaseId          : string;        // TRegistry_ReadString(Reg, 'ReleaseId');
-     fUBR                : integer;       // TRegistry_ReadInteger(Reg, 'UBR');
-     fInstallDate        : TDateTime;
+     fBuildLab             : string;        // TRegistry_ReadString(Reg, 'BuildLab');
+     fBuildLabEx           : string;        // TRegistry_ReadString(Reg, 'BuildLabEx');
+     fCSDBuildNumber       : string;        // TRegistry_ReadString(Reg, 'CSDBuildNumber');
+     fCSDVersionReg        : string;        // TRegistry_ReadString(Reg, 'CSDVersion');
+     fCurrentBuildNumber   : string;        // TRegistry_ReadString(Reg, 'CurrentBuildNumber');
+     fCurrentVersion       : string;        // TRegistry_ReadString(Reg, 'CurrentVersion');
+     fEditionId            : string;        // TRegistry_ReadString(Reg, 'EditionId');
+     fProductName          : string;        // TRegistry_ReadString(Reg, 'ProductName');
+     fReleaseId            : string;        // TRegistry_ReadString(Reg, 'ReleaseId');
+     fUBR                  : integer;       // TRegistry_ReadInteger(Reg, 'UBR');
+     fInstallDate          : TDateTime;
 
      procedure AppendToName( const AText: AnsiString ); overload;
      procedure AppendToName( const AText: WideString ); overload;
@@ -347,7 +347,7 @@ function GetProductInfo( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, d
 begin
    xFunc := nil;
    LibHandle := 0;
-   Result := dluLoadLibrary.GetWindowsFunction( cLib_Kernel32, 'GetProductInfo', LibHandle, xFunc );
+   Result := lxLoadLibrary.GetWindowsFunction( cLib_Kernel32, 'GetProductInfo', LibHandle, xFunc );
    if Result then begin
       Result := TGetProductInfo(xFunc)( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion, pdwReturnedProductType );
       Windows.FreeLibrary( LibHandle );
@@ -395,9 +395,11 @@ begin
    end;
 end;
 
+(*****************************************************************************************)
 var LocProcArchDict : IuDictionary = nil;
 var SuiteDict       : IuDictionary = nil;
 var ProductDict     : IuDictionary = nil;
+(*****************************************************************************************)
 
 function GetArchitectureDict(): IuDictionary; forward;
 
