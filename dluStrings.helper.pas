@@ -11,13 +11,21 @@ type
 { TStringsHelper }
 
  TStringsHelper = class helper for TStrings
+   strict private
+      function GetBoolean( const n: integer ): boolean;
    public
       procedure AddFmt( const AText: string; const AParam: array of const );
       procedure AddLine( const AChar: char; const ACount: integer = 80 );
       procedure AddPair( const AKey: string; const AValue: Variant ); overload;
-      procedure AddPair( const AKey: string; const AValue: string  ); overload;
+      procedure AddPair( const AKey, AValue: UnicodeString  ); overload;
       procedure AddPair( const AKey: string; const AValue: integer ); overload;
-      procedure AddPair( const AKey: string; const AFormat: string; const AParam: array of const ); overload;
+      procedure AddPair( const AKey, AFormat: string; const AParam: array of const ); overload;
+      //
+      function AddBoolean(const S: AnsiString; const AValue: boolean): Integer; overload;
+      function AddBoolean(const S: UnicodeString; const AValue: boolean): Integer; overload;
+      //
+      property Booleans[ const n: integer ]: boolean read GetBoolean;
+
 end;
 
 implementation
@@ -46,11 +54,12 @@ begin
 end;
 {$ENDIF}
 
-
-
-
-
 { TStringsHelper }
+
+function TStringsHelper.GetBoolean( const n: integer ): boolean;
+begin
+   Result := Boolean( NativeUInt( self.Objects[ n ] ) );
+end;
 
 procedure TStringsHelper.AddFmt(const AText: string; const AParam: array of const);
 begin
@@ -93,9 +102,9 @@ begin
    end;
 end;
 
-procedure TStringsHelper.AddPair(const AKey, AValue: string);
+procedure TStringsHelper.AddPair(const AKey, AValue: UnicodeString);
 begin
-   self.Add( X( AKey + '=' + AValue ) );
+   self.AddPair( X( AKey), X(AValue) );
 end;
 
 procedure TStringsHelper.AddPair(const AKey: string; const AValue: integer);
@@ -106,6 +115,16 @@ end;
 procedure TStringsHelper.AddPair(const AKey, AFormat: string; const AParam: array of const);
 begin
    self.AddPair( X( AKey ), Format( X( AFormat ), AParam ) );
+end;
+
+function TStringsHelper.AddBoolean(const S: AnsiString; const AValue: boolean ): Integer;
+begin
+   Result := self.AddObject( S, TObject( NativeUInt( AValue ) ) );
+end;
+
+function TStringsHelper.AddBoolean(const S: UnicodeString; const AValue: boolean): Integer;
+begin
+   Result := self.AddBoolean( X(S), AValue );
 end;
 
 end.
