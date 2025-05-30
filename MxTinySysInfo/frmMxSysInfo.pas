@@ -335,18 +335,11 @@ begin
    with Sender as TBaseVirtualTree do begin
       HitInfo := Default( THitInfo );
       GetHitTestInfoAt( X, Y, True, HitInfo);
-      if Assigned( HitInfo.HitNode ) then begin
-         if IsHyperLink( HitInfo ) then
-             Cursor := GetNodeObject( HitInfo.HitNode ).GetMouseCursor( HitInfo.HitColumn )
-         //else if GetNodeObject( HitInfo.HitNode ).GetMouseCursor( HitInfo.HitColumn ) then
-         //    Cursor := crHelp
-         //else
-         //    Cursor := parent.Cursor;
-         else
-            Cursor := GetNodeObject( HitInfo.HitNode ).GetMouseCursor( HitInfo.HitColumn );
-      end else
-         Cursor := parent.Cursor;
+      if Assigned( HitInfo.HitNode ) and OverText( HitInfo)
+         then Cursor := GetNodeObject( HitInfo.HitNode ).GetMouseCursor( HitInfo.HitColumn )
+         else Cursor := parent.Cursor;
    end;
+
 end;
 
 procedure TSysInfoFrame.VstFreeNode( Sender: TBaseVirtualTree; Node: PVirtualNode) ;
@@ -358,10 +351,16 @@ procedure TSysInfoFrame.vstGetHint( Sender: TBaseVirtualTree;
                                     Node: PVirtualNode; Column: TColumnIndex;
                                     var LineBreakStyle: TVTTooltipLineBreakStyle;
                                     var HintText: AnsiString);
+  var HitInfo : THitInfo;
+      P: TPoint;
 begin
    with Sender as TBaseVirtualTree do begin
-      if (Column=1) and Assigned( Node ) then
-         HintText := AnsiString( GetNodeObject( Node ).GetExtraParam( NODE_HINT ) );
+      if (Column=1) and Assigned( Node ) and (Cursor=GetNodeObject( Node ).GetMouseCursor( Column )) then
+         HitInfo := Default( THitInfo );
+         P := ScreenToClient(Mouse.CursorPos);
+         GetHitTestInfoAt( P.X, P.Y, True, HitInfo);
+         if OverText(HitInfo) then
+            HintText := AnsiString( GetNodeObject( Node ).GetExtraParam( NODE_HINT ) );
    end;
 end;
 
