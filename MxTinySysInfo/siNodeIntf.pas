@@ -71,8 +71,7 @@ type VstHelper = class helper for TBaseVirtualTree {TVirtualStringTree}
        function GetNodeObject( ANode: PVirtualNode ): IsiParam;
        function AddNodeFirst( AParentNode: PVirtualNode; AObject: IsiParam ): PVirtualNode;
        function AddNodeLast( AParentNode: PVirtualNode; AObject: IsiParam ): PVirtualNode;
-       function IsHyperLink( const xHitInfo: THitInfo ): boolean; inline;
-
+       function OverText( const xHitInfo: THitInfo ): boolean; inline;
 end;
 
 implementation
@@ -169,11 +168,10 @@ begin
    PrepareNode( Result, AObject );
 end;
 
-function VstHelper.IsHyperLink(const xHitInfo: THitInfo): boolean;
+function VstHelper.OverText(const xHitInfo: THitInfo): boolean;
 begin
    with xHitInfo do
-      Result := ((hiOnItemLabel in HitPositions) or (hiOnNormalIcon in HitPositions)) and
-                 (self.GetNodeObject(HitNode).GetNodeType = sinUrl);
+      Result := ((hiOnItemLabel in HitPositions) or (hiOnNormalIcon in HitPositions));
 end;
 
 
