@@ -16,6 +16,8 @@ function FileOwner( const FileName: UnicodeString; out Domain, Owner: UnicodeStr
 function FileOwner( const FileName: UnicodeString ): UnicodeString; overload;
 function FileOwner( const FileName: AnsiString ): AnsiString; overload;
 
+function FileOwnerEx( const AFileName: UnicodeString) : UnicodeString;
+
 implementation
 
 uses
@@ -157,6 +159,16 @@ end;
 function FileOwner( const FileName: AnsiString ): AnsiString; overload;
 begin
    Result := AnsiString( FileOwner( UnicodeString( FileName ) ) );
+end;
+
+function FileOwnerEx(const AFileName: UnicodeString): UnicodeString;
+  var sDomain : UnicodeString;
+      RetCode : Cardinal;
+begin
+   Result  := '';
+   if dluFileOwner.FileOwner( AFileName, sDomain, Result, RetCode )
+      then Result := Result + '@' + sDomain
+      else Result := 'Error - 0x' + UnicodeString( IntToHex( RetCode, 8 ) )
 end;
 
 
