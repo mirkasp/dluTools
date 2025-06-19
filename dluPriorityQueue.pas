@@ -24,6 +24,8 @@ end;
 // kolejka priorytetowa o zmiennej (nieustalonej) d³ugoœci
 // doskona³e do sortowania i symulowania stosu !
 //
+
+{ TuVariableLengthPQ }
 type TuVariableLengthPQ<Key> = class( TInterfacedObject, IuPriorityQueue<Key> )
   strict private
     var
@@ -39,6 +41,7 @@ type TuVariableLengthPQ<Key> = class( TInterfacedObject, IuPriorityQueue<Key> )
     function Less( const i, j: integer ): boolean; register;
   public
     constructor Create( ACompare: TCompFunc<Key>; const initCapacity: integer = 1 ); virtual;
+    destructor Destroy; override;
     procedure Insert( Item: Key ); virtual;
     function IsEmpty: boolean;
     function Size: integer;
@@ -88,7 +91,13 @@ begin
    fCompare := ACompare;
 end;
 
-function TuVariableLengthPQ<Key>.Less(const i, j: integer): boolean;
+destructor TuVariableLengthPQ<Key>.Destroy;
+begin
+   fPQ := nil;
+   inherited Destroy;
+end;
+
+function TuVariableLengthPQ<Key>.Less(const i, j: integer): boolean; register;
 begin
    Result := fCompare( fPQ[i], fPQ[j] ) < 0;
 end;
@@ -108,7 +117,7 @@ begin
    end;
 end;
 
-procedure TuVariableLengthPQ<Key>.Exchg(const i, j: integer);
+procedure TuVariableLengthPQ<Key>.Exchg(const i, j: integer); register;
 begin
    if i <> j then begin
       fSwapTmp  := fPQ[ i ];
@@ -117,7 +126,7 @@ begin
    end;
 end;
 
-procedure TuVariableLengthPQ<Key>.Swim(k: integer);
+procedure TuVariableLengthPQ<Key>.Swim(k: integer); register;
   var n : integer;
 begin
    n := k shr 1;
@@ -128,7 +137,7 @@ begin
    end;
 end;
 
-procedure TuVariableLengthPQ<Key>.Sink(k: integer);
+procedure TuVariableLengthPQ<Key>.Sink(k: integer); register;
   var j, tmp : integer;
 begin
    tmp := k shl 1;
@@ -181,14 +190,16 @@ function TuVariableLengthPQ<Key>.DelTop: Key;
 // Zwraca i usuwa topowy (najwiêkszy lub najmniejszy) klucz z kolejki priorytetowej.
 // Zg³asza wyj¹tek, jeœli kolejka jest pusta.
 //
-  //var m : Key;
 begin
    Result := self.Top();
    ExChg( 1, fN );
    Dec( fN );
    sink( 1 );
    fPQ[ fN+1 ] := Default( Key ); //nil;  // to avoid loiteing and help with garbage collection
-   if (fN > 0) and (fN = (Length(fPQ) -1) div 4 ) then Resize( Length(fPQ) div 2 );
+   if (fN > 0) then begin
+      if (fN = (High(fPQ) div 4 ))
+         then Resize( (High(fPQ) + 1) div 2 );
+   end;
    Assert( IsMaxHeap() );
 end;
 
