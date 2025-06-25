@@ -32,7 +32,7 @@ type generic TMxEngine<_T: TMxT_Base; _R: record> = class
            //
            FFinished          : boolean;
            FLastExecuteTime   : TMsClockCounter;
-           FStopper           : TuStopper;
+           FStopper           : TuStopper;            // record
            //
            FMxSubjectsCount   : integer;
            FMxSubjects        : TMxSubjects;
