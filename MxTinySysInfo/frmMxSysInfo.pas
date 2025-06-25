@@ -16,7 +16,7 @@ uses Classes
    , Forms
    , Graphics
    , VirtualTrees
-   ;
+   , Controls;
 
 type TSysInfoLang = ( silEn, silPl );
 type TSysInfoPosi = ( sipOS, sipProc, sipMem, sipUser, sipComp );
@@ -67,8 +67,7 @@ type TSysInfoFrame = class( TFrame)
 
 implementation
 
-uses Controls
-   , SysUtils
+uses SysUtils
    , lclIntf
    , lxSystemInfo
    , lxTinyProcessor
@@ -329,6 +328,25 @@ begin
       end;
 end;
 
+procedure TSysInfoFrame.VstFreeNode( Sender: TBaseVirtualTree; Node: PVirtualNode) ;
+begin
+   PNodeData(Sender.GetNodeData( Node ))^.ReleaseData;
+end;
+
+//procedure TSysInfoFrame.vstGetCursor(Sender: TBaseVirtualTree; var Cursor: TCursor);
+//  var HitInfo : THitInfo;
+//      P       : TPoint;
+//begin
+//   with Sender as TBaseVirtualTree do begin
+//      HitInfo := Default( THitInfo );
+//      P := ScreenToClient(Mouse.CursorPos);
+//      GetHitTestInfoAt( P.X, P.Y, True, HitInfo);
+//      if Assigned( HitInfo.HitNode ) and OverText( HitInfo)
+//         then Cursor := GetNodeObject( HitInfo.HitNode ).GetMouseCursor( HitInfo.HitColumn )
+//         else Cursor := parent.Cursor;
+//   end;
+//end;
+
 procedure TSysInfoFrame.vstMouseMove( Sender: TObject; Shift: TShiftState; X,Y: Integer) ;
   var HitInfo : THitInfo;
 begin
@@ -342,11 +360,6 @@ begin
 
 end;
 
-procedure TSysInfoFrame.VstFreeNode( Sender: TBaseVirtualTree; Node: PVirtualNode) ;
-begin
-   PNodeData(Sender.GetNodeData( Node ))^.ReleaseData;
-end;
-
 procedure TSysInfoFrame.vstGetHint( Sender: TBaseVirtualTree;
                                     Node: PVirtualNode; Column: TColumnIndex;
                                     var LineBreakStyle: TVTTooltipLineBreakStyle;
@@ -355,12 +368,13 @@ procedure TSysInfoFrame.vstGetHint( Sender: TBaseVirtualTree;
       P: TPoint;
 begin
    with Sender as TBaseVirtualTree do begin
-      if (Column=1) and Assigned( Node ) and (Cursor=GetNodeObject( Node ).GetMouseCursor( Column )) then
+      if (Column=1) and Assigned( Node ) and (Cursor=GetNodeObject( Node ).GetMouseCursor( Column )) then begin
          HitInfo := Default( THitInfo );
          P := ScreenToClient(Mouse.CursorPos);
          GetHitTestInfoAt( P.X, P.Y, True, HitInfo);
          if OverText(HitInfo) then
             HintText := AnsiString( GetNodeObject( Node ).GetExtraParam( NODE_HINT ) );
+      end;
    end;
 end;
 
