@@ -92,15 +92,16 @@ uses
   , dluDictionary
   ;
 
-{$IFDEF FPC}
-const PathDelim = PathSeparator;
-{$ELSE}
-const PathDelim = SysUtils.PathDelim;
+//{$IFDEF FPC}
+//const PathDelim = PathSeparator;
+//{$ELSE}
+//const PathDelim = SysUtils.PathDelim;
+//{$ENDIF}
 
+{$IFNDEF FPC}
 // from lazarus file 'defines.inc'
 const VFT2_DRV_INPUTMETHOD       = $0b;
 const VFT2_DRV_VERSIONED_PRINTER = $0c;
-
 {$ENDIF}
 
 var FileTypeDict    : IuDictionary = nil;
@@ -191,6 +192,22 @@ begin
    end;
 end;
 
+//function GetSubString( const ASource: String;
+//                       const ASepararator: Char;
+//                       var APos: integer;
+//                       out RetStr: String ): boolean;
+//  var i   : integer;
+//      k   : integer;
+//      boo : boolean;
+//begin
+//   i   := APos;
+//   k   := Length( ASource );
+//   boo := (APos <= k);
+//   while boo and (ASource[APos] <> ASepararator) do begin
+//      Inc( APos );
+//      boo := (APos <= k);
+//   end;
+//end;
 
 function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
    var i : integer;
@@ -212,11 +229,13 @@ end;
 
 function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
   var actPos : integer;
+      sp : String;
 begin
    VPath  := '';
    actPos := 1;
+   sp     := UnicodeStringReplace( ASearchPaths, PathSeparator+PathSeparator, PathSeparator, [rfReplaceAll] );
    Result := false;
-   while not Result and GetNextItem( ASearchPaths, PathDelim, actPos, VPath ) do begin
+   while not Result and GetNextItem( sp, PathSeparator, actPos, VPath ) do begin
        VPath  := IncludeTrailingPathDelimiter(VPath) + AFileName;
        Result := FileExists( VPath )
    end;
