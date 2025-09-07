@@ -11,67 +11,80 @@ interface
 
 uses SysUtils;
 
-type TCompFunc<T> = function(const Left, Right: T): Integer;
+//------------------------------------------------------------------------------------------------
+// Definicja generycznej funkcji porÃ³wnujÄ…cej
+//------------------------------------------------------------------------------------------------
+type TCompareFunc<T> = function(const Left, Right: T): Integer;
 
-type IuPriorityQueue<T> = interface
-    procedure Insert( Item: T );
+//------------------------------------------------------------------------------------------------
+// Interfejs kolejki priorytetowej
+//------------------------------------------------------------------------------------------------
+type IPriorityQueue<T> = interface
+    ['{2A5D191A-58B6-4921-9971-ADE9DF656552}']
+    procedure Insert(Item: T);
     function IsEmpty: boolean;
     function Size: integer;
     function Top: T;
-    function DelTop: T;
+    function Dequeue: T;
 end;
 
-// kolejka priorytetowa o zmiennej (nieustalonej) d³ugoœci
-// doskona³e do sortowania i symulowania stosu !
-//
-
-{ TuVariableLengthPQ }
-type TuVariableLengthPQ<Key> = class( TInterfacedObject, IuPriorityQueue<Key> )
+//------------------------------------------------------------------------------------------------
+// Kolejka priorytetowa o zmiennej (nieustalonej) dÅ‚ugoÅ›ci
+// Zaimplementowana jako generyczny kopiec binarny z dynamicznÄ… alokacjÄ….
+//------------------------------------------------------------------------------------------------
+type TVariableLengthPriorityQueue<Key> = class(TInterfacedObject, IPriorityQueue<Key>)
   strict private
+    var 
+       //FCompare : TCompareFunc<Key>;
+       //FHeap    : TArray<Key>;
+       FCount   : integer;
+       FCapacity: integer;
+
+    procedure Resize(const newCapacity: integer);
+    procedure Swim(k: integer);
+    procedure Exchange(const i, j: integer);
+    function IsLess(const i, j: integer): boolean;
+
+  protected
     var
-       fCompare : TCompFunc<Key>;
-       fPQ      : array of Key;
-       fSwapTmp : Key;
-       fN       : integer;
-    procedure Resize( const newCapacity: integer );
-    procedure Swim( k: integer ); inline; register;
-    procedure Sink( k: integer ); inline; register;
-    procedure Exchg(const i, j: integer); register;
-    function isMaxHeap( const k: integer = 1): boolean;     // is subtree of pq[1..n] rooted at k a max heap?
-    function Less( const i, j: integer ): boolean; register;
+       FCompare : TCompareFunc<Key>;
+       FHeap    : TArray<Key>;
+    procedure Sink(k: integer);
+
   public
-    constructor Create( ACompare: TCompFunc<Key>; const initCapacity: integer = 1 ); virtual;
+    constructor Create(ACompare: TCompareFunc<Key>; const initCapacity: integer = 10); virtual;
     destructor Destroy; override;
-    procedure Insert( Item: Key ); virtual;
+    
+    // IPriorityQueue<T>
+    procedure Insert(Item: Key); virtual;
     function IsEmpty: boolean;
     function Size: integer;
     function Top: Key;
-    function DelTop: Key;
+    function Dequeue: Key;
 end;
 
 //------------------------------------------------------------------------------------------------
-// Kolejka priorytetowa o sta³ej d³ugoœci
+// Kolejka priorytetowa o staÅ‚ej dÅ‚ugoÅ›ci
 //
-//   Pozwala na optymalne rozwi¹zywanie problemów typu:
-//       znajdŸ n ekstremalnych (minimalnych/maksymalnych) elementów spoœród danych wejœciowych.
+//   Optymalne do znajdowania n ekstremalnych (minimalnych/maksymalnych) elementÃ³w.
 //
-//   Podstawowe znaczenie ma wartoœæ parametru ACompare - czyli definicja funkcji porównuj¹cej
-//   elementy wejœciowe. Jest to funkcja ustalaj¹ca porz¹dek w zbiorze danych wejœciowych.
-//      ACompare( a, b ) == | -1 gdy a jest "mniejsze" ni¿ b,
-//                          |  0 gdy a jest "równe" b
-//                          | +1 gdy a jest "wiêksze" ni¿ b
+//   Podstawowe znaczenie ma wartoÅ›Ä‡ parametru ACompare - czyli definicja funkcji porÃ³wnujÄ…cej
+//   elementy wejÅ›ciowe. Jest to funkcja ustalajÄ…ca porzÄ…dek w zbiorze danych wejÅ›ciowych.
+//      ACompare( a, b ) == | -1 gdy a jest "mniejsze" niÅ¼ b,
+//                          |  0 gdy a jest "rÃ³wne" b
+//                          | +1 gdy a jest "wiÄ™ksze" niÅ¼ b
 //
-//    Przyk³adowo:
-//       ACompare( a,b: integer ) := a - b      [ znajdowanie wartoœci minimalnych ]
-//       ACompare( a,b: integer ) := b - a      [ znajdowanie wartoœci maksymalnych ]
+//    PrzykÅ‚adowo:
+//       ACompare( a,b: integer ) := a - b      [ znajdowanie wartoÅ›ci minimalnych ]
+//       ACompare( a,b: integer ) := b - a      [ znajdowanie wartoÅ›ci maksymalnych ]
 //
 //------------------------------------------------------------------------------------------------
-type TuFixedLengthPQ<Key> = class( TuVariableLengthPQ<Key> )
+type TFixedLengthPriorityQueue<Key> = class(TVariableLengthPriorityQueue<Key>)
   strict private
-    fInitialValue : integer;
+    FCapacityLimit: integer;
   public
-    constructor Create( ACompare: TCompFunc<Key>; const initCapacity: integer = 1 ); override;
-    procedure Insert( Item: Key ); override;
+    constructor Create(ACompare: TCompareFunc<Key>; const initCapacity: integer); override;
+    procedure Insert(Item: Key); override;
 end;
 
 
@@ -82,145 +95,128 @@ https://algs4.cs.princeton.edu/24pq/
 https://algs4.cs.princeton.edu/24pq/MaxPQ.java.html
 *)
 
-{ TuVariableLengthPQ<T> }
-constructor TuVariableLengthPQ<Key>.Create( ACompare: TCompFunc<Key>; const initCapacity: integer);
+
+{ TVariableLengthPriorityQueue<T> }
+
+constructor TVariableLengthPriorityQueue<Key>.Create(ACompare: TCompareFunc<Key>; const initCapacity: integer);
 begin
    inherited Create;
-   SetLength( fPQ, initCapacity+1 );
-   fN       := 0;
-   fCompare := ACompare;
+   Assert(initCapacity > 0, 'Initial capacity must be positive');
+   FCompare  := ACompare;
+   FCount    := 0;
+   FCapacity := initCapacity;
+   SetLength(FHeap, FCapacity + 1);
 end;
 
-destructor TuVariableLengthPQ<Key>.Destroy;
+destructor TVariableLengthPriorityQueue<Key>.Destroy;
 begin
-   fPQ := nil;
+   FHeap := nil;
    inherited Destroy;
 end;
 
-function TuVariableLengthPQ<Key>.Less(const i, j: integer): boolean; register;
+function TVariableLengthPriorityQueue<Key>.IsLess(const i, j: integer): boolean;
 begin
-   Result := fCompare( fPQ[i], fPQ[j] ) < 0;
+   Result := FCompare(FHeap[i], FHeap[j]) < 0;
 end;
 
-function TuVariableLengthPQ<Key>.isMaxHeap(const k: integer): boolean;
-  var left, right : integer;
-begin
-   if k>fN then Result := true
-   else begin
-       left  := k shl 1;
-       right := left + 1;
-       if (left <= fN) and Less( k, left ) then Result := false
-       else
-          if (right <= fN) and Less( k, right ) then Result := false
-          else
-             Result := isMaxHeap( left ) and isMaxHeap( right );
-   end;
-end;
-
-procedure TuVariableLengthPQ<Key>.Exchg(const i, j: integer); register;
+procedure TVariableLengthPriorityQueue<Key>.Exchange(const i, j: integer);
+  var tmp: Key;
 begin
    if i <> j then begin
-      fSwapTmp  := fPQ[ i ];
-      fPQ[ i ]  := fPQ[ j ];
-      fPQ[ j ]  := fSwapTmp;
+      tmp      := FHeap[i];
+      FHeap[i] := FHeap[j];
+      FHeap[j] := tmp;
    end;
 end;
 
-procedure TuVariableLengthPQ<Key>.Swim(k: integer); register;
-  var n : integer;
+procedure TVariableLengthPriorityQueue<Key>.Swim(k: integer);
 begin
-   n := k shr 1;
-   while (k>1) and Less( n, k ) do begin
-       Exchg( k, n );
-       k := n;
-       n := k shr 1;
+   while (k > 1) and IsLess(k div 2, k) do begin
+      Exchange(k, k div 2);
+      k := k div 2;
    end;
 end;
 
-procedure TuVariableLengthPQ<Key>.Sink(k: integer); register;
-  var j, tmp : integer;
+procedure TVariableLengthPriorityQueue<Key>.Sink(k: integer);
+  var j: integer;
 begin
-   tmp := k shl 1;
-   while (tmp <= fN) do begin
-      j   := tmp;
-      if (j<fN) and Less( j, j+1 ) then Inc(j);
-      if not Less( k, j ) then break;
-      Exchg( k, j );
-      k   := j;
-      tmp := k shl 1;
+   while (2 * k <= FCount) do begin
+      j := 2 * k;
+      if (j < FCount) and IsLess(j, j + 1) then
+         Inc(j);
+      if not IsLess(k, j) then
+         break;
+      Exchange(k, j);
+      k := j;
    end;
 end;
 
-procedure TuVariableLengthPQ<Key>.Resize(const newCapacity: integer);
+procedure TVariableLengthPriorityQueue<Key>.Resize(const newCapacity: integer);
 begin
-   Assert( newCapacity > fN );
-   SetLength( fPQ, newCapacity );
+   Assert(newCapacity >= FCount + 1, 'New capacity cannot be less than current size');
+   FCapacity := newCapacity;
+   SetLength(FHeap, FCapacity + 1);
 end;
 
-procedure TuVariableLengthPQ<Key>.Insert(Item: Key);
+procedure TVariableLengthPriorityQueue<Key>.Insert(Item: Key);
 begin
-   // double size of array if necessary
-   if (fN = High( fPQ))
-      then resize( 2 * Length(fPQ) );
-   // add x, and percolate it up to maintain heap invariant
-   Inc(fN);
-   fPQ[ fN ] := Item;
-   swim( fN );
-   Assert( isMaxHeap( 1 ) );
+   if FCount >= FCapacity then
+      Resize(2 * FCapacity);
+
+   Inc(FCount);
+   FHeap[FCount] := Item;
+   Swim(FCount);
 end;
 
-function TuVariableLengthPQ<Key>.IsEmpty: boolean;
+function TVariableLengthPriorityQueue<Key>.IsEmpty: boolean;
 begin
-   Result := (fN = 0);
+   Result := FCount = 0;
 end;
 
-function TuVariableLengthPQ<Key>.Top: Key;
-//
-// Zwraca topowy (najwiêkszy lub najmniejszy) klucz z kolejki priorytetowej.
-// Zg³asza wyj¹tek, jeœli kolejka jest pusta.
-//
+function TVariableLengthPriorityQueue<Key>.Top: Key;
 begin
-   if isEmpty() then raise Exception.Create('Brak elementow w kolejce priorytetowej');
-   Result := fPQ[1];
+   if IsEmpty then
+      raise Exception.Create('Brak elementow w kolejce priorytetowej');
+   Result := FHeap[1];
 end;
 
-
-function TuVariableLengthPQ<Key>.DelTop: Key;
-//
-// Zwraca i usuwa topowy (najwiêkszy lub najmniejszy) klucz z kolejki priorytetowej.
-// Zg³asza wyj¹tek, jeœli kolejka jest pusta.
-//
+function TVariableLengthPriorityQueue<Key>.Dequeue: Key;
 begin
-   Result := self.Top();
-   ExChg( 1, fN );
-   Dec( fN );
-   sink( 1 );
-   fPQ[ fN+1 ] := Default( Key ); //nil;  // to avoid loiteing and help with garbage collection
-   if (fN > 0) then begin
-      if (fN = (High(fPQ) div 4 ))
-         then Resize( (High(fPQ) + 1) div 2 );
+   Result := Self.Top;
+   Exchange(1, FCount);
+   Dec(FCount);
+   Sink(1);
+
+   // Ustawienie wartoÅ›ci domyÅ›lnej, aby uniknÄ…Ä‡ bÅ‚Ä™dÃ³w
+   if FCount < High(FHeap) then
+      FHeap[FCount + 1] := Default(Key);
+
+   // Zmniejszenie rozmiaru tablicy, jeÅ›li jest zbyt duÅ¼a
+   if (FCount > 0) and (FCount <= FCapacity div 4) then
+      Resize(FCapacity div 2);
+end;
+
+function TVariableLengthPriorityQueue<Key>.Size: integer;
+begin
+   Result := FCount;
+end;
+
+{ TFixedLengthPriorityQueue<Key> }
+
+constructor TFixedLengthPriorityQueue<Key>.Create(ACompare: TCompareFunc<Key>; const initCapacity: integer);
+begin
+   inherited Create(ACompare, initCapacity);
+   FCapacityLimit := initCapacity;
+end;
+
+procedure TFixedLengthPriorityQueue<Key>.Insert(Item: Key);
+begin
+   if Size() < FCapacityLimit then begin
+      inherited Insert(Item);
+   end else if FCompare(Item, FHeap[1]) < 0 then begin
+      FHeap[1] := Item;
+      Sink(1);
    end;
-   Assert( IsMaxHeap() );
-end;
-
-function TuVariableLengthPQ<Key>.Size: integer;
-begin
-   Result := fN;
-end;
-
-{ TuFixedLengthPriorityQueue<Key> }
-
-constructor TuFixedLengthPQ<Key>.Create(ACompare: TCompFunc<Key>; const initCapacity: integer);
-begin
-   inherited Create( ACompare, initCapacity+1 );
-   fInitialValue := initCapacity;
-end;
-
-procedure TuFixedLengthPQ<Key>.Insert(Item: Key);
-begin
-   inherited Insert( Item );
-   if size() > fInitialValue
-      then DelTop();
 end;
 
 end.
