@@ -34,7 +34,8 @@ implementation
 
 uses Graphics;
 
-const  aHintCursor: array[ boolean ] of TCursor = ( crDefault, crHelp );
+const aHintNodeFont: array[ boolean ] of TFontStyles = ( [], [fsUnderline] );
+const aHintCursor: array[ boolean ] of TCursor = ( crDefault, crHelp );
 
 (******************************************************************************)
 { TsiParamObj }
@@ -44,13 +45,14 @@ begin
    fNodeType := sinParam;
    with fNodeParams[0] do begin
       NormalText    := TryAddColon( ACaption );
-      FontStyles    := [];
+      FontStyles    := aHintNodeFont[ AHint <> '' ];
+      Cursor        := aHintCursor[ AHint <> '' ];
    end;
    with fNodeParams[1] do begin
       NormalText    := AValue;
       FontStyles    := [fsBold];
       Hint          := AHint;
-      Cursor        := aHintCursor[ Hint <> '' ];
+      Cursor        := crDefault;
    end;
 end;
 

@@ -309,7 +309,7 @@ procedure TSysInfoFrame.VstPaintText( Sender: TBaseVirtualTree;
                                           TextType: TVSTTextType) ;
 begin
   with PNodeData(Sender.GetNodeData(Node))^ do
-     if Assigned( NodeObjIntf ) and(TextType = ttNormal) then begin
+     if Assigned( NodeObjIntf ) and (TextType = ttNormal) then begin
         NodeObjIntf.SetFontTo( Column, TargetCanvas.Font );
      end;
 end;
@@ -352,12 +352,11 @@ procedure TSysInfoFrame.vstMouseMove( Sender: TObject; Shift: TShiftState; X,Y: 
 begin
    with Sender as TBaseVirtualTree do begin
       HitInfo := Default( THitInfo );
-      GetHitTestInfoAt( X, Y, True, HitInfo);
-      if Assigned( HitInfo.HitNode ) and OverText( HitInfo)
+      GetHitTestInfoAt( X, Y, True, HitInfo );
+      if Assigned( HitInfo.HitNode ) and OverText( HitInfo )
          then Cursor := GetNodeObject( HitInfo.HitNode ).GetMouseCursor( HitInfo.HitColumn )
          else Cursor := parent.Cursor;
    end;
-
 end;
 
 procedure TSysInfoFrame.vstGetHint( Sender: TBaseVirtualTree;
@@ -367,8 +366,17 @@ procedure TSysInfoFrame.vstGetHint( Sender: TBaseVirtualTree;
   var HitInfo : THitInfo;
       P: TPoint;
 begin
+   //with Sender as TBaseVirtualTree do begin
+   //   if (Column=1) and Assigned( Node ) and (Cursor=GetNodeObject( Node ).GetMouseCursor( Column )) then begin
+   //      HitInfo := Default( THitInfo );
+   //      P := ScreenToClient(Mouse.CursorPos);
+   //      GetHitTestInfoAt( P.X, P.Y, True, HitInfo);
+   //      if OverText(HitInfo) then
+   //         HintText := AnsiString( GetNodeObject( Node ).GetExtraParam( NODE_HINT ) );
+   //   end;
+   //end;
    with Sender as TBaseVirtualTree do begin
-      if (Column=1) and Assigned( Node ) and (Cursor=GetNodeObject( Node ).GetMouseCursor( Column )) then begin
+      if (Column=0) and Assigned( Node ) and (Cursor=GetNodeObject( Node ).GetMouseCursor( Column )) then begin
          HitInfo := Default( THitInfo );
          P := ScreenToClient(Mouse.CursorPos);
          GetHitTestInfoAt( P.X, P.Y, True, HitInfo);
