@@ -8,14 +8,14 @@ unit TinySysInfo;
 interface
 
 uses
-  frmMxSysInfo, siNodeIntf, siNodeParam, LazarusPackageIntf;
+  frmMxSysInfo, siNodeIntf, siNodeParam, lxWinVer3, LazarusPackageIntf;
 
 implementation
 
 procedure Register;
 begin
-end;
+end ;
 
 initialization
   RegisterPackage('TinySysInfo', @Register);
-end.
+end .

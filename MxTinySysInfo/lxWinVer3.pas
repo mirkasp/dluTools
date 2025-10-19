@@ -503,6 +503,7 @@ begin
    if (fMajorVersion = 10) and (fMinorVersion = 0) and (fProductType = VER_NT_WORKSTATION) then begin
         case fBuildNumber of
            // windows 11
+           26200 : Result := '25H2';
            26100 : Result := '24H2';
            22631 : Result := '23H2';
            22621 : Result := '22H2';

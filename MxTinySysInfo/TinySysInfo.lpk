@@ -21,6 +21,8 @@
       <Item>
         <Filename Value="frmMxSysInfo.pas"/>
         <UnitName Value="frmMxSysInfo"/>
+        <ResourceBaseClass Value="Frame"/>
+        <ResourceBaseClassname Value=""/>
       </Item>
       <Item>
         <Filename Value="siNodeIntf.pas"/>
@@ -29,6 +31,10 @@
       <Item>
         <Filename Value="siNodeParam.pas"/>
         <UnitName Value="siNodeParam"/>
+      </Item>
+      <Item>
+        <Filename Value="lxWinVer3.pas"/>
+        <UnitName Value="lxWinVer3"/>
       </Item>
     </Files>
     <RequiredPkgs>
