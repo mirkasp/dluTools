@@ -14,7 +14,7 @@
 
 interface
 
-uses Classes, lxLoadLibrary;
+uses Classes;
 
 type
 
@@ -109,7 +109,9 @@ function GetAppWinVer(): TWinVerSpec;
 
 implementation
 
-uses Windows, SysUtils, Registry, dluDictionary;
+uses JwaWindows, Windows, SysUtils, Registry, dluDictionary
+   //, lxLoadLibrary
+   ;
 
 (******************************************************************************)
 var AppWinVer : TWinVerSpec = nil;
@@ -282,77 +284,99 @@ const PRODUCT_HOLOGRAPHIC                         = $00000087;
 const PRODUCT_HOLOGRAPHIC_BUSINESS                = $00000088;
 const PRODUCT_SERVERRDSH                          = $000000AF;     // + 2025.03.30
 
-type UCHAR  = Byte;
-type USHORT = Word;
-type ULONG  = DWord;
-type TWCharArray128 = array[ 0.. 127] of WideChar;
+//type UCHAR  = Byte;
+//type USHORT = Word;
+//type ULONG  = DWord;
+//type TWCharArray128 = array[ 0.. 127] of WideChar;
 
-type TuOSVersionInfoExW = packed record
-   dwOSVersionInfoSize: ULONG;
-   dwMajorVersion     : ULONG;
-   dwMinorVersion     : ULONG;
-   dwBuildNumber      : ULONG;
-   dwPlatformId       : ULONG;
-   szCSDVersion       : TWCharArray128;
-   wServicePackMajor  : USHORT;
-   wServicePackMinor  : USHORT;
-   wSuiteMask         : USHORT;
-   wProductType       : UCHAR;
-   wReserved          : UCHAR;
-end;
+//type TuOSVersionInfoExW = packed record
+//   dwOSVersionInfoSize: ULONG;
+//   dwMajorVersion     : ULONG;
+//   dwMinorVersion     : ULONG;
+//   dwBuildNumber      : ULONG;
+//   dwPlatformId       : ULONG;
+//   szCSDVersion       : TWCharArray128;
+//   wServicePackMajor  : USHORT;
+//   wServicePackMinor  : USHORT;
+//   wSuiteMask         : USHORT;
+//   wProductType       : UCHAR;
+//   wReserved          : UCHAR;
+//end;
 
-type TGetVersionFunc = function( var AParam:TuOSVersionInfoExW ): Boolean; stdcall;
-type TGetNativeSystemInfo = procedure( var AParam: Windows.TSystemInfo ); stdcall;
-type TGetProductInfo = function( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean; stdcall;
+//type TuOSVersionInfoExW = TOSVersionInfoExW;
 
-function CustomVersionFunc( const ALibrary, AFuncName: string; var AParam: TuOSVersionInfoExW ): boolean;
-  var DLLWnd : THandle = 0;
-      xFunc  : pointer = nil;
-begin
-   Result := GetWindowsFunction( ALibrary, AFuncName, DllWnd, xFunc );
-   if Result then begin
-      AParam.dwOSVersionInfoSize := SizeOf( AParam );
-      Result := TGetVersionFunc(xFunc)( AParam );
-      FreeLibrary( DLLWnd );
-   end;
-end;
+//type TGetVersionFunc = function( var AParam:TuOSVersionInfoExW ): Boolean; stdcall;
+//type TGetNativeSystemInfo = procedure( var AParam: Windows.TSystemInfo ); stdcall;
+//type TGetProductInfo = function( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean; stdcall;
 
-function GetVersionEx( var AOSVIEX: TuOSVersionInfoExW ): boolean;
-begin
-   Result := CustomVersionFunc( cLib_Kernel32, 'GetVersionExW', AOSVIEX );
-end;
+//function CustomVersionFunc( const ALibrary, AFuncName: string; var AParam: TuOSVersionInfoExW ): boolean;
+//  var DLLWnd : THandle = 0;
+//      xFunc  : pointer = nil;
+//begin
+//   Result := GetWindowsFunction( ALibrary, AFuncName, DllWnd, xFunc );
+//   if Result then begin
+//      AParam.dwOSVersionInfoSize := SizeOf( AParam );
+//      Result := TGetVersionFunc(xFunc)( AParam );
+//      FreeLibrary( DLLWnd );
+//   end;
+//end;
 
-function RtlGetVersion( var AOSVIEX: TuOSVersionInfoExW ): boolean;
-begin
-   // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
-   Result := CustomVersionFunc( cLib_Ntdll, 'RtlGetVersion', AOSVIEX );
-end;
+//function GetVersionEx( var AOSVIEX: TuOSVersionInfoExW ): boolean;
+//begin
+//   Result := CustomVersionFunc( cLib_Kernel32, 'GetVersionExW', AOSVIEX );
+//end;
+
+//
+//  https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexw
+//
+function GetVersionEx( var lpVersionInformation: TOSVersionInfoExW ): LongInt; stdcall; external cLib_Kernel32 name 'GetVersionExW';
+
+//function RtlGetVersion( var AOSVIEX: TuOSVersionInfoExW ): boolean;
+//begin
+//   // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
+//   Result := CustomVersionFunc( cLib_Ntdll, 'RtlGetVersion', AOSVIEX );
+//end;
+
+//
+//  https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
+//
+function RtlGetVersion( var lpVersionInformation: TOSVersionInfoExW ): LongInt; stdcall; external cLib_Ntdll name 'RtlGetVersion';
+
+//procedure GetNativeSysInfo( var ASysInfo: Windows.TSystemInfo );
+//  var LibHandle : THandle;
+//      xFunc  : pointer;
+//begin
+//   xFunc := nil;
+//   // https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getnativesysteminfo
+//   if GetWindowsFunction( cLib_Kernel32, 'GetNativeSystemInfo', LibHandle{%H-}, xFunc ) then begin
+//      TGetNativeSystemInfo(xFunc)( ASysInfo );
+//      FreeLibrary( LibHandle );
+//   end;
+//end;
+
+//
+//  https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getnativesysteminfo
+//
+procedure GetNativeSystemInfo(var lpSystemInfo: TSystemInfo); stdcall; external cLib_Kernel32 name 'GetNativeSystemInfo';
 
 
-procedure GetNativeSysInfo( var ASysInfo: Windows.TSystemInfo );
-  var LibHandle : THandle;
-      xFunc  : pointer;
-begin
-   xFunc := nil;
-   // https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getnativesysteminfo
-   if GetWindowsFunction( cLib_Kernel32, 'GetNativeSystemInfo', LibHandle{%H-}, xFunc ) then begin
-      TGetNativeSystemInfo(xFunc)( ASysInfo );
-      FreeLibrary( LibHandle );
-   end;
-end;
+//function GetProductInfo( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean;
+//  var LibHandle : THandle;
+//      xFunc     : pointer;
+//begin
+//   xFunc := nil;
+//   LibHandle := 0;
+//   Result := lxLoadLibrary.GetWindowsFunction( cLib_Kernel32, 'GetProductInfo', LibHandle, xFunc );
+//   if Result then begin
+//      Result := TGetProductInfo(xFunc)( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion, pdwReturnedProductType );
+//      Windows.FreeLibrary( LibHandle );
+//   end;
+//end;
 
-function GetProductInfo( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean;
-  var LibHandle : THandle;
-      xFunc     : pointer;
-begin
-   xFunc := nil;
-   LibHandle := 0;
-   Result := lxLoadLibrary.GetWindowsFunction( cLib_Kernel32, 'GetProductInfo', LibHandle, xFunc );
-   if Result then begin
-      Result := TGetProductInfo(xFunc)( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion, pdwReturnedProductType );
-      Windows.FreeLibrary( LibHandle );
-   end;
-end;
+//
+//  https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getproductinfo
+//
+function GetProductInfo(dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD): BOOL; stdcall; external cLib_Kernel32 name 'GetProductInfo';
 
 function GetLocaleInformation( Flag : LCTYPE ): WideString;
   var Buffer : PWideChar;
@@ -388,7 +412,7 @@ begin
      end;
 end;
 
-function UnknownSystem( const AText: WideString; AParam: TuOSVersionInfoExW ): WideString;
+function UnknownSystem( const AText: WideString; AParam: TOSVersionInfoExW ): WideString;
 begin
    with AParam do begin
       Result := WideString( Format( '%s [%d.%d.%d prod. $%x]', [ AText, dwMajorVersion, dwMinorVersion, dwBuildNumber, wProductType ] ) );
@@ -534,12 +558,14 @@ https://stackoverflow.com/questions/8144599/getting-the-windows-version
 https://wiki.freepascal.org/WindowsVersion
 }
 procedure TWinVerSpec.Prepare_Win32_NT_Platform;
-  var osi : TuOSVersionInfoExW;
-      nsi : Windows.TSystemInfo;
+  var osi : TOSVersionInfoExW;
+      //nsi : Windows.TSystemInfo;
+      nsi : TSystemInfo;
       n   : integer;
 begin
-   osi := Default( TuOSVersionInfoExW );
-   if not GetVersionEx( osi ) then begin
+   osi := Default( TOSVersionInfoExW );
+   osi.dwOSVersionInfoSize := SizeOf( osi );
+   if GetVersionEx( osi ) = 0 then begin
       self.fName := 'Unknown';
       exit;
    end;
@@ -667,7 +693,9 @@ begin
       end;
 
 
-      GetNativeSystemInfo( {$IFDEF FPC}@{$ENDIF}nsi );
+      //GetNativeSystemInfo( {$IFDEF FPC}@{$ENDIF}nsi );
+      nsi := Default( TSystemInfo );
+      GetNativeSystemInfo( nsi );
       fProcessorArchitecture := nsi.wProcessorArchitecture;
       fMediaCenter := GetSystemMetrics( SM_MEDIACENTER ) <> 0;
       fTabletPC    := GetSystemMetrics( SM_TABLETPC ) <> 0;
