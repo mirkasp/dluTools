@@ -2,6 +2,7 @@
 
 {$IFDEF FPC}
   {$mode objfpc}{$H+}
+  {$codepage UTF8}
 {$ELSE}
   {$MESSAGE HINT 'Tested only for LAZARUS!'}
 {$ENDIF}
@@ -14,94 +15,99 @@
 
 interface
 
-uses Classes;
-
-type
+uses Classes
+   , JwaWindows
+   ;
 
 { TWinVerSpec }
-
- TWinVerSpec = class
+type TWinVerSpec = class
    strict private
-     fAllProperties        : TStrings;
-     //
-     fName                 : WideString;
-     fTechnicalInfo        : WideString;
-     fPlatformId           : Cardinal;
-     fMajorVersion         : Cardinal;
-     fMinorVersion         : Cardinal;
-     fBuildNumber          : Cardinal;
-     fCSDVersion           : WideString;
-     fServicePackMajor     : Word;
-     fServicePackMinor     : Word;
-     fSuiteMask            : Word;
-     fProcessorArchitecture: Word;
-     fProductType          : Byte;
-     fProductInfo          : Cardinal;
-     fMediaCenter          : boolean;
-     fTabletPC             : boolean;
-     fSuites               : TStrings;
-     fLang                 : WideString;
-     //
-     fBuildLab             : string;        // TRegistry_ReadString(Reg, 'BuildLab');
-     fBuildLabEx           : string;        // TRegistry_ReadString(Reg, 'BuildLabEx');
-     fCSDBuildNumber       : string;        // TRegistry_ReadString(Reg, 'CSDBuildNumber');
-     fCSDVersionReg        : string;        // TRegistry_ReadString(Reg, 'CSDVersion');
-     fCurrentBuildNumber   : string;        // TRegistry_ReadString(Reg, 'CurrentBuildNumber');
-     fCurrentVersion       : string;        // TRegistry_ReadString(Reg, 'CurrentVersion');
-     fEditionId            : string;        // TRegistry_ReadString(Reg, 'EditionId');
-     fProductName          : string;        // TRegistry_ReadString(Reg, 'ProductName');
-     fReleaseId            : string;        // TRegistry_ReadString(Reg, 'ReleaseId');
-     fUBR                  : integer;       // TRegistry_ReadInteger(Reg, 'UBR');
-     fInstallDate          : TDateTime;
+      fAllProperties        : TStrings;
+      //
+      FName                 : WideString;
+      fTechnicalInfo        : WideString;
+      fPlatformId           : Cardinal;
+      fMajorVersion         : Cardinal;
+      fMinorVersion         : Cardinal;
+      fBuildNumber          : Cardinal;
+      fCSDVersion           : WideString;
+      fServicePackMajor     : Word;
+      fServicePackMinor     : Word;
+      fSuiteMask            : Word;
+      fProcessorArchitecture: Word;
+      fProductType          : Byte;
+      fProductInfo          : Cardinal;
+      fMediaCenter          : boolean;
+      fTabletPC             : boolean;
+      fSuites               : TStrings;
+      fLang                 : WideString;
+      //
+      fBuildLab             : string;        // TRegistry_ReadString(Reg, 'BuildLab');
+      fBuildLabEx           : string;        // TRegistry_ReadString(Reg, 'BuildLabEx');
+      fCSDBuildNumber       : string;        // TRegistry_ReadString(Reg, 'CSDBuildNumber');
+      fCSDVersionReg        : string;        // TRegistry_ReadString(Reg, 'CSDVersion');
+      fCurrentBuildNumber   : string;        // TRegistry_ReadString(Reg, 'CurrentBuildNumber');
+      fCurrentVersion       : string;        // TRegistry_ReadString(Reg, 'CurrentVersion');
+      fEditionId            : string;        // TRegistry_ReadString(Reg, 'EditionId');
+      fProductName          : string;        // TRegistry_ReadString(Reg, 'ProductName');
+      fReleaseId            : string;        // TRegistry_ReadString(Reg, 'ReleaseId');
+      fUBR                  : integer;       // TRegistry_ReadInteger(Reg, 'UBR');
+      fInstallDate          : TDateTime;
 
-     procedure AppendToName( const AText: AnsiString ); overload;
-     procedure AppendToName( const AText: WideString ); overload;
-     procedure AppendToNameIf( const ACond: boolean; const AText_true, AText_false: WideString );
-     procedure Prepare_Win32s_Platform;
-     procedure Prepare_Win32_Windows_Platform;
-     procedure Prepare_Win32_NT_Platform;
-     procedure TryReadFromRegistry;
-     function GetCompilationInfo: WideString;
-     function GetWindowsRelease: UnicodeString;
+      procedure AppendToName( const AText: AnsiString ); overload;
+      procedure AppendToName( const AText: WideString ); overload;
+      procedure AppendToNameIf( const ACond: boolean; const AText_true, AText_false: WideString );
+      procedure Prepare_Win32s_Platform;
+      procedure Prepare_Win32_Windows_Platform;
+      procedure Prepare_Win32_NT_Platform;
+      procedure TryReadFromRegistry;
+      function GetCompilationInfo: WideString;
+      function GetWindowsRelease: UnicodeString;
+      procedure NTFetchVersionDataFromAPI(out osi: TOSVersionInfoExW);
+      procedure NTFetchAdditionalSystemDetails;
+      procedure IdentifyWinNT4AndEarlier();
+      procedure IdentifyWin2000AndXP();
+      procedure IdentifyWinVistaTo8(const osi: TOSVersionInfoExW);
+      procedure IdentifyWin10AndLater(const osi: TOSVersionInfoExW);
    public
-     constructor Create;
-     destructor Destroy; override;
-     //
-     property AllProperties        : TStrings   read fAllProperties;
-     //
-     property TechnicalInfo        : WideString read fTechnicalInfo;
-     property CompilationInfo      : WideString read GetCompilationInfo;
-     //
-     property Name                 : WideString read fName;
-     property PlatformId           : Cardinal   read fPlatformId;
-     property MajorVersion         : Cardinal   read fMajorVersion;
-     property MinorVersion         : Cardinal   read fMinorVersion;
-     property BuildNumber          : Cardinal   read fBuildNumber;
-     property CSDVersion           : WideString read fCSDVersion;
-     property ServicePackMajor     : Word       read fServicePackMajor;
-     property ServicePackMinor     : Word       read fServicePackMinor;
-     property SuiteMask            : Word       read fSuiteMask;
-     property ProcessorArchitecture: Word       read fProcessorArchitecture;
-     property ProductType          : Byte       read fProductType;
-     property ProductInfo          : Cardinal   read fProductInfo;
-     property MediaCenter          : boolean    read fMediaCenter;
-     property TabletPC             : boolean    read fTabletPC;
-     property Suites               : TStrings   read fSuites;
-     property Lang                 : WideString read fLang;
-     //
-     property BuildLab             : string     read fBuildLab;
-     property BuildLabEx           : string     read fBuildLabEx;
-     property CSDBuildNumber       : string     read fCSDBuildNumber;
-     property CSDVersionReg        : string     read fCSDVersionReg;
-     property CurrentBuildNumber   : string     read fCurrentBuildNumber;
-     property CurrentVersion       : string     read fCurrentVersion;
-     property EditionId            : string     read fEditionId;
-     property ProductName          : string     read fProductName;
-     property ReleaseId            : string     read fReleaseId;
-     property UBR                  : integer    read fUBR;
-     property InstallDate          : TDateTime  read fInstallDate;
-     //
-     property WindowsRelease       : UnicodeString read GetWindowsRelease;
+      constructor Create;
+      destructor Destroy; override;
+      //
+      property AllProperties        : TStrings   read fAllProperties;
+      //
+      property TechnicalInfo        : WideString read fTechnicalInfo;
+      property CompilationInfo      : WideString read GetCompilationInfo;
+      //
+      property Name                 : WideString read FName;
+      property PlatformId           : Cardinal   read fPlatformId;
+      property MajorVersion         : Cardinal   read fMajorVersion;
+      property MinorVersion         : Cardinal   read fMinorVersion;
+      property BuildNumber          : Cardinal   read fBuildNumber;
+      property CSDVersion           : WideString read fCSDVersion;
+      property ServicePackMajor     : Word       read fServicePackMajor;
+      property ServicePackMinor     : Word       read fServicePackMinor;
+      property SuiteMask            : Word       read fSuiteMask;
+      property ProcessorArchitecture: Word       read fProcessorArchitecture;
+      property ProductType          : Byte       read fProductType;
+      property ProductInfo          : Cardinal   read fProductInfo;
+      property MediaCenter          : boolean    read fMediaCenter;
+      property TabletPC             : boolean    read fTabletPC;
+      property Suites               : TStrings   read fSuites;
+      property Lang                 : WideString read fLang;
+      //
+      property BuildLab             : string     read fBuildLab;
+      property BuildLabEx           : string     read fBuildLabEx;
+      property CSDBuildNumber       : string     read fCSDBuildNumber;
+      property CSDVersionReg        : string     read fCSDVersionReg;
+      property CurrentBuildNumber   : string     read fCurrentBuildNumber;
+      property CurrentVersion       : string     read fCurrentVersion;
+      property EditionId            : string     read fEditionId;
+      property ProductName          : string     read fProductName;
+      property ReleaseId            : string     read fReleaseId;
+      property UBR                  : integer    read fUBR;
+      property InstallDate          : TDateTime  read fInstallDate;
+      //
+      property WindowsRelease       : UnicodeString read GetWindowsRelease;
 
 end;
 
@@ -109,8 +115,10 @@ function GetAppWinVer(): TWinVerSpec;
 
 implementation
 
-uses JwaWindows, Windows, SysUtils, Registry, dluDictionary
-   //, lxLoadLibrary
+uses Windows
+   , SysUtils
+   , Registry
+   , dluDictionary
    ;
 
 (******************************************************************************)
@@ -284,94 +292,20 @@ const PRODUCT_HOLOGRAPHIC                         = $00000087;
 const PRODUCT_HOLOGRAPHIC_BUSINESS                = $00000088;
 const PRODUCT_SERVERRDSH                          = $000000AF;     // + 2025.03.30
 
-//type UCHAR  = Byte;
-//type USHORT = Word;
-//type ULONG  = DWord;
-//type TWCharArray128 = array[ 0.. 127] of WideChar;
-
-//type TuOSVersionInfoExW = packed record
-//   dwOSVersionInfoSize: ULONG;
-//   dwMajorVersion     : ULONG;
-//   dwMinorVersion     : ULONG;
-//   dwBuildNumber      : ULONG;
-//   dwPlatformId       : ULONG;
-//   szCSDVersion       : TWCharArray128;
-//   wServicePackMajor  : USHORT;
-//   wServicePackMinor  : USHORT;
-//   wSuiteMask         : USHORT;
-//   wProductType       : UCHAR;
-//   wReserved          : UCHAR;
-//end;
-
-//type TuOSVersionInfoExW = TOSVersionInfoExW;
-
-//type TGetVersionFunc = function( var AParam:TuOSVersionInfoExW ): Boolean; stdcall;
-//type TGetNativeSystemInfo = procedure( var AParam: Windows.TSystemInfo ); stdcall;
-//type TGetProductInfo = function( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean; stdcall;
-
-//function CustomVersionFunc( const ALibrary, AFuncName: string; var AParam: TuOSVersionInfoExW ): boolean;
-//  var DLLWnd : THandle = 0;
-//      xFunc  : pointer = nil;
-//begin
-//   Result := GetWindowsFunction( ALibrary, AFuncName, DllWnd, xFunc );
-//   if Result then begin
-//      AParam.dwOSVersionInfoSize := SizeOf( AParam );
-//      Result := TGetVersionFunc(xFunc)( AParam );
-//      FreeLibrary( DLLWnd );
-//   end;
-//end;
-
-//function GetVersionEx( var AOSVIEX: TuOSVersionInfoExW ): boolean;
-//begin
-//   Result := CustomVersionFunc( cLib_Kernel32, 'GetVersionExW', AOSVIEX );
-//end;
-
 //
 //  https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexw
 //
 function GetVersionEx( var lpVersionInformation: TOSVersionInfoExW ): LongInt; stdcall; external cLib_Kernel32 name 'GetVersionExW';
-
-//function RtlGetVersion( var AOSVIEX: TuOSVersionInfoExW ): boolean;
-//begin
-//   // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
-//   Result := CustomVersionFunc( cLib_Ntdll, 'RtlGetVersion', AOSVIEX );
-//end;
 
 //
 //  https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-rtlgetversion
 //
 function RtlGetVersion( var lpVersionInformation: TOSVersionInfoExW ): LongInt; stdcall; external cLib_Ntdll name 'RtlGetVersion';
 
-//procedure GetNativeSysInfo( var ASysInfo: Windows.TSystemInfo );
-//  var LibHandle : THandle;
-//      xFunc  : pointer;
-//begin
-//   xFunc := nil;
-//   // https://docs.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getnativesysteminfo
-//   if GetWindowsFunction( cLib_Kernel32, 'GetNativeSystemInfo', LibHandle{%H-}, xFunc ) then begin
-//      TGetNativeSystemInfo(xFunc)( ASysInfo );
-//      FreeLibrary( LibHandle );
-//   end;
-//end;
-
 //
 //  https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getnativesysteminfo
 //
 procedure GetNativeSystemInfo(var lpSystemInfo: TSystemInfo); stdcall; external cLib_Kernel32 name 'GetNativeSystemInfo';
-
-
-//function GetProductInfo( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion: DWORD; var pdwReturnedProductType: DWORD ): boolean;
-//  var LibHandle : THandle;
-//      xFunc     : pointer;
-//begin
-//   xFunc := nil;
-//   LibHandle := 0;
-//   Result := lxLoadLibrary.GetWindowsFunction( cLib_Kernel32, 'GetProductInfo', LibHandle, xFunc );
-//   if Result then begin
-//      Result := TGetProductInfo(xFunc)( dwOSMajorVersion, dwOSMinorVersion, dwSpMajorVersion, dwSpMinorVersion, pdwReturnedProductType );
-//      Windows.FreeLibrary( LibHandle );
-//   end;
-//end;
 
 //
 //  https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getproductinfo
@@ -382,15 +316,15 @@ function GetLocaleInformation( Flag : LCTYPE ): WideString;
   var Buffer : PWideChar;
       Size   : integer;
 begin
-    Size := GetLocaleInfoW( LOCALE_USER_DEFAULT, Flag, nil, 0);
-    GetMem( Buffer, Size * SizeOf(WideChar) );
-    try
-       if GetLocaleInfoW( LOCALE_USER_DEFAULT, Flag, Buffer, Size ) <= 0
-          then Result := ''
-          else Result := Copy( Buffer, 1, Size );
-    finally
-       FreeMem(Buffer);
-    end;
+   Size := GetLocaleInfoW( LOCALE_USER_DEFAULT, Flag, nil, 0);
+   GetMem( Buffer, Size * SizeOf(WideChar) );
+   try
+      if GetLocaleInfoW( LOCALE_USER_DEFAULT, Flag, Buffer, Size ) <= 0
+         then Result := ''
+         else Result := Copy( Buffer, 1, Size );
+   finally
+      FreeMem(Buffer);
+   end;
 end;
 
 function GetProductFromRegistry(): WideString;
@@ -412,10 +346,10 @@ begin
      end;
 end;
 
-function UnknownSystem( const AText: WideString; AParam: TOSVersionInfoExW ): WideString;
+function UnknownSystem( const AParam: TOSVersionInfoExW ): WideString;
 begin
    with AParam do begin
-      Result := WideString( Format( '%s [%d.%d.%d prod. $%x]', [ AText, dwMajorVersion, dwMinorVersion, dwBuildNumber, wProductType ] ) );
+      Result := WideFormat( 'Unknown Windows version [%d.%d.%d prod. $%x]', [ dwMajorVersion, dwMinorVersion, dwBuildNumber, wProductType ] );
    end;
 end;
 
@@ -435,7 +369,7 @@ end;
 
 constructor TWinVerSpec.Create;
 begin
-   fName         := 'Windows';
+   FName         := 'Windows';
    fPlatformId   := Win32Platform;
    fMajorVersion := Win32MajorVersion;
    fMinorVersion := Win32MinorVersion;
@@ -520,62 +454,76 @@ begin
                    [ fMajorVersion, fMinorVersion, fBuildNumber, s, fCSDVersion ] ) );
 end;
 
+type TWin10orLaterReleaseInfo = record
+       MinBuild : LongWord;
+       Version  : UnicodeString;  // Np. '11' lub '10'
+       ReleaseId: UnicodeString;  // Np. '24H2', '22H2'
+    end;
+
+// Tablica z wersjami, KONIECZNIE posortowana od najwyższego numeru kompilacji do najniższego
+const C_WINDOWS_RELEASES: array[0..19] of TWin10orLaterReleaseInfo = (
+      ( MinBuild: 26200; Version: '11'; ReleaseId: '25H2' ),
+      ( MinBuild: 26100; Version: '11'; ReleaseId: '24H2' ),
+      ( MinBuild: 22631; Version: '11'; ReleaseId: '23H2' ),
+      ( MinBuild: 22621; Version: '11'; ReleaseId: '22H2' ),
+      ( MinBuild: 22000; Version: '11'; ReleaseId: '21H2' ),
+      ( MinBuild: 19045; Version: '10'; ReleaseId: '22H2' ),
+      ( MinBuild: 19044; Version: '10'; ReleaseId: '21H2' ),
+      ( MinBuild: 19043; Version: '10'; ReleaseId: '21H1' ),
+      ( MinBuild: 19042; Version: '10'; ReleaseId: '20H2' ),
+      ( MinBuild: 19041; Version: '10'; ReleaseId: '2004' ),
+      ( MinBuild: 18363; Version: '10'; ReleaseId: '1909' ),
+      ( MinBuild: 18362; Version: '10'; ReleaseId: '1903' ),
+      ( MinBuild: 17763; Version: '10'; ReleaseId: '1809' ),
+      ( MinBuild: 17134; Version: '10'; ReleaseId: '1803' ),
+      ( MinBuild: 16299; Version: '10'; ReleaseId: '1709' ),
+      ( MinBuild: 15063; Version: '10'; ReleaseId: '1703' ),
+      ( MinBuild: 14393; Version: '10'; ReleaseId: '1607' ),
+      ( MinBuild: 10586; Version: '10'; ReleaseId: '1511' ),
+      ( MinBuild: 10240; Version: '10'; ReleaseId: '1507' ),
+      ( MinBuild: 0;     Version: '10'; ReleaseId: '????' ) // Wartość domyślna
+    );
+
 function TWinVerSpec.GetWindowsRelease: UnicodeString;
+
+    function GetWRI: TWin10orLaterReleaseInfo;
+      var i: Integer;
+    begin
+       // Pętla znajduje pierwszą pasującą wersję (dlatego tablica musi być posortowana malejąco)
+       for i := Low(C_WINDOWS_RELEASES) to High(C_WINDOWS_RELEASES) do begin
+          if fBuildNumber >= C_WINDOWS_RELEASES[i].MinBuild then
+             Exit( C_WINDOWS_RELEASES[i] );
+       end;
+       Result := C_WINDOWS_RELEASES[High(C_WINDOWS_RELEASES)]; // Zwróć domyślną, jeśli nic nie pasuje
+    end;
+
 begin
    Result := '';
    // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
    if (fMajorVersion = 10) and (fMinorVersion = 0) and (fProductType = VER_NT_WORKSTATION) then begin
-        case fBuildNumber of
-           // windows 11
-           26200 : Result := '25H2';
-           26100 : Result := '24H2';
-           22631 : Result := '23H2';
-           22621 : Result := '22H2';
-           22000 : Result := '21H2';
-           // windows 10
-           19045 : Result := '22H2';
-           19044 : Result := '21H2';
-           19043 : Result := '21H1';
-           19042 : Result := '20H2';
-           19041 : Result := '2004';
-           18363 : Result := '1909';
-           18362 : Result := '1903';
-           17763 : Result := '1809';
-           17134 : Result := '1803';
-           16299 : Result := '1709';
-           15063 : Result := '1703';
-           14393 : Result := '1607';
-           10586 : Result := '1511';
-           10240 : Result := '1507';
 
-           else    Result := '????';
-        end;
+       with GetWRI() do begin
+           AppendToName( Version );
+           AppendToName( ReleaseId );
+       end;
    end;
 end;
 
-{
-https://stackoverflow.com/questions/8144599/getting-the-windows-version
-https://wiki.freepascal.org/WindowsVersion
-}
-procedure TWinVerSpec.Prepare_Win32_NT_Platform;
-  var osi : TOSVersionInfoExW;
-      //nsi : Windows.TSystemInfo;
-      nsi : TSystemInfo;
-      n   : integer;
+procedure TWinVerSpec.NTFetchVersionDataFromAPI(out osi: TOSVersionInfoExW);
 begin
    osi := Default( TOSVersionInfoExW );
    osi.dwOSVersionInfoSize := SizeOf( osi );
    if GetVersionEx( osi ) = 0 then begin
-      self.fName := 'Unknown';
+      self.FName := 'Unknown';
       exit;
-   end;
+   end ;
    // informacje mogą być niepoprawne dla Windows 10, jesli nie ma ustawionego manifestu
    // skorzystajmy więc z funkcji RtlGetVersion
    if osi.dwMajorVersion >= 6  then begin
       RtlGetVersion( osi );
-   end;
+   end ;
 
-   fName             := 'Windows';
+   FName             := 'Windows';
    fMajorVersion     := osi.dwMajorVersion;
    fMinorVersion     := osi.dwMinorVersion;
    fBuildNumber      := osi.dwBuildNumber;
@@ -585,127 +533,137 @@ begin
    fServicePackMinor := osi.wServicePackMinor ;
    fSuiteMask        := osi.wSuiteMask;
    fProductType      := osi.wProductType;
+end;
 
-   if fMajorVersion <= 4 then begin
-      AppendToName( ' NT ' + IntToStr( fMajorVersion)+'.'+IntToStr( fMinorVersion) {%H-});
-   end;
-
-   if fMajorVersion = 5 then begin
-
-      //  5.0 => Windows 2000
-      //  5.1 => Windows XP
-      //  5.2 => Windows XP64 or Windows 2003 Server
-
-      case fMinorVersion of
-         0 : begin
-                AppendToName( '2000' );
-                AppendToNameIf( fProductType = VER_NT_WORKSTATION, 'Professional', 'Server' );
-         end;
-
-         1 : begin
-                if fProductType = VER_NT_WORKSTATION then begin
-                   AppendToName( 'XP' );
-                   AppendToNameIf( (fSuiteMask and VER_SUITE_PERSONAL) = VER_SUITE_PERSONAL,
-                                   'Home Edition',
-                                   'Professional' );
-                end else
-                   AppendToName( 'Server 2003' );
-             end;
-
-         2 : begin
-                if ( fProductType = VER_NT_WORKSTATION) then begin
-                   AppendToName( 'XP x64 Professional' )
-                end else
-                   if (fSuiteMask and VER_SUITE_WH_SERVER) = VER_SUITE_WH_SERVER then
-                      AppendToName( 'Home Server' )
-                   else begin
-                      AppendToName( 'Server 2003' );
-                      n := GetSystemMetrics( SM_SERVERR2 );
-                      AppendToNameIf( n <> 0, 'R2 build '+IntToStr(n){%H-}, '' );
-                   end;
-             end
-         else AppendToName( '???' );
+procedure TWinVerSpec.NTFetchAdditionalSystemDetails;
+  var nsi: TSystemInfo;
+begin
+   if GetProductInfo( fMajorVersion, fMinorVersion, fServicePackMajor, fServicePackMajor, fProductInfo ) then begin
+      AppendToName( ProductDict.Value( fProductInfo ) );
+   end else if fProductType = VER_NT_WORKSTATION then begin
+      case fSuiteMask of
+         512 : AppendToName( 'Personal' );
+         768 : AppendToName( 'Home Premium' );
+         else  AppendToName( 'Professional' );
       end;
-
-   end;
-
-   if fMajorVersion = 6 then begin
-
-      //  6.0 => Windows Vista or Windows 2008 Server
-      //  6.1 => Windows 7 or Windows 2008 Server R2
-      //  6.2 => Windows 8 or Windows Server 2012
-      //  6.3 => Windows 8.1 or Windows Server 2012 RS
-
-      case fMinorVersion of
-         0 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, 'Vista ', 'Server 2008'   );
-         1 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '7 ',     'Server 2008 R2' );
-         2 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '8 ',     'Server 2012'    );
-         3 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '8.1 ',   'Server 2012 RS' );
-        else fName := UnknownSystem( 'Unknown Windows version ', osi );
-      end {case};
-
-   end;
-
-   if fMajorVersion = 10 then begin
-
-      TryReadFromRegistry( );
-
-      // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
-      if fMinorVersion = 0 then begin
-         if fProductType = VER_NT_WORKSTATION then begin
-            if fBuildNumber < 22000
-               then AppendToName( '10' )
-               else AppendToName( '11' );
-            AppendToName( GetWindowsRelease() );
-         end else AppendToName( 'Server 2016' );
+   end else if fProductType = VER_NT_DOMAIN_CONTROLLER then begin
+      AppendToName( 'Domain Controller' );
+   end else if fProductType = VER_NT_SERVER then begin
+      if fSuiteMask = VER_SUITE_DATACENTER then begin
+         AppendToName( 'DataCenter Server' )
+      end else if fSuiteMask = VER_SUITE_ENTERPRISE then begin
+         AppendToName( 'Advanced Server' )
       end else
-         fName := UnknownSystem( 'Unknown Windows version', osi );
+         AppendToName( 'Server' );
+   end else begin
+      AppendToName( GetProductFromRegistry() );
+   end;
 
+   nsi := Default( TSystemInfo );
+   GetNativeSystemInfo( nsi );
+   fProcessorArchitecture := nsi.wProcessorArchitecture;
+   fMediaCenter := GetSystemMetrics( SM_MEDIACENTER ) <> 0;
+   fTabletPC    := GetSystemMetrics( SM_TABLETPC ) <> 0;
 
-      //case fMinorVersion of
-      //   0 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '10', 'Server 2016' );
-      //  else fName := UnknownSystem( 'Unknown Windows version', osi );
-      //end;
+   AppendToName( GetArchitectureDict().Value( fProcessorArchitecture ) );
+   AppendToNameIf( fMediaCenter, 'Media Center', '' );
+   AppendToNameIf( fTabletPC, 'Tablet PC', '' );
 
+   fSuites := SuiteDict.GetMasksList( fSuiteMask );
+end;
+
+procedure TWinVerSpec.IdentifyWinNT4AndEarlier();
+begin
+   AppendToName( ' NT ' + IntToStr( fMajorVersion)+'.'+IntToStr( fMinorVersion) {%H-});
+end;
+
+procedure TWinVerSpec.IdentifyWin2000AndXP();
+  var n: integer;
+begin
+   //  5.0 => Windows 2000
+   //  5.1 => Windows XP
+   //  5.2 => Windows XP64 or Windows 2003 Server
+
+   case fMinorVersion of
+       0 : begin
+              AppendToName( '2000' );
+              AppendToNameIf( fProductType = VER_NT_WORKSTATION, 'Professional', 'Server' );
+           end;
+
+       1 : begin
+              if fProductType = VER_NT_WORKSTATION then begin
+                 AppendToName( 'XP' );
+                 AppendToNameIf( (fSuiteMask and VER_SUITE_PERSONAL) = VER_SUITE_PERSONAL,
+                                 'Home Edition',
+                                 'Professional' );
+              end else
+                 AppendToName( 'Server 2003' );
+           end;
+
+       2 : begin
+              if ( fProductType = VER_NT_WORKSTATION) then begin
+                 AppendToName( 'XP x64 Professional' )
+              end else
+                 if (fSuiteMask and VER_SUITE_WH_SERVER) = VER_SUITE_WH_SERVER then
+                    AppendToName( 'Home Server' )
+                 else begin
+                    AppendToName( 'Server 2003' );
+                    n := GetSystemMetrics( SM_SERVERR2 );
+                    AppendToNameIf( n <> 0, 'R2 build '+IntToStr(n){%H-}, '' );
+                 end;
+           end
+      else AppendToName( '???' );
+   end;
+end;
+
+procedure TWinVerSpec.IdentifyWinVistaTo8(const osi: TOSVersionInfoExW);
+begin
+   //  6.0 => Windows Vista or Windows 2008 Server
+   //  6.1 => Windows 7 or Windows 2008 Server R2
+   //  6.2 => Windows 8 or Windows Server 2012
+   //  6.3 => Windows 8.1 or Windows Server 2012 RS
+
+   case fMinorVersion of
+      0 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, 'Vista ', 'Server ' + '2008'    );
+      1 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '7 ',     'Server ' + '2008 R2' );
+      2 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '8 ',     'Server ' + '2012'    );
+      3 : AppendToNameIf( fProductType = VER_NT_WORKSTATION, '8.1 ',   'Server ' + '2012 RS' );
+     else FName := UnknownSystem( osi );
+   end {case};
+end;
+
+procedure TWinVerSpec.IdentifyWin10AndLater(const osi: TOSVersionInfoExW);
+begin
+   TryReadFromRegistry( );
+
+   // https://learn.microsoft.com/en-us/windows/release-health/windows11-release-information
+   if fMinorVersion = 0 then begin
+      if fProductType = VER_NT_WORKSTATION
+         then AppendToName( GetWindowsRelease() )
+         else AppendToName( 'Server 2016' );
+   end else
+      FName := UnknownSystem( osi );
+end;
+
+{
+https://stackoverflow.com/questions/8144599/getting-the-windows-version
+https://wiki.freepascal.org/WindowsVersion
+}
+procedure TWinVerSpec.Prepare_Win32_NT_Platform;
+  var osi : TOSVersionInfoExW;
+begin
+   NTFetchVersionDataFromAPI(osi);
+
+   case fMajorVersion of
+       0..4: IdentifyWinNT4AndEarlier;
+          5: IdentifyWin2000AndXP;
+          6: IdentifyWinVistaTo8( osi );
+         10: IdentifyWin10AndLater( osi );
+       else  fName := UnknownSystem( osi );
    end;
 
    if fMajorVersion > 4 then begin
-
-      if GetProductInfo( fMajorVersion, fMinorVersion, fServicePackMajor, fServicePackMajor, fProductInfo ) then begin
-         AppendToName( ProductDict.Value( fProductInfo ) );
-      end else if fProductType = VER_NT_WORKSTATION then begin
-         case fSuiteMask of
-            512 : AppendToName( 'Personal' );
-            768 : AppendToName( 'Home Premium' );
-            else  AppendToName( 'Professional' );
-         end;
-      end else if fProductType = VER_NT_DOMAIN_CONTROLLER then begin
-         AppendToName( 'Domain Controller' );
-      end else if fProductType = VER_NT_SERVER then begin
-         if fSuiteMask = VER_SUITE_DATACENTER then begin
-            AppendToName( 'DataCenter Server' )
-         end else if fSuiteMask = VER_SUITE_ENTERPRISE then begin
-            AppendToName( 'Advanced Server' )
-         end else
-            AppendToName( 'Server' );
-      end else begin
-         AppendToName( GetProductFromRegistry() );
-      end;
-
-
-      //GetNativeSystemInfo( {$IFDEF FPC}@{$ENDIF}nsi );
-      nsi := Default( TSystemInfo );
-      GetNativeSystemInfo( nsi );
-      fProcessorArchitecture := nsi.wProcessorArchitecture;
-      fMediaCenter := GetSystemMetrics( SM_MEDIACENTER ) <> 0;
-      fTabletPC    := GetSystemMetrics( SM_TABLETPC ) <> 0;
-
-      AppendToName( GetArchitectureDict().Value( fProcessorArchitecture ) );
-      AppendToNameIf( fMediaCenter, 'Media Center', '' );
-      AppendToNameIf( fTabletPC, 'Tablet PC', '' );
-
-      fSuites := SuiteDict.GetMasksList( fSuiteMask );
-
+      NTFetchAdditionalSystemDetails;
    end;
 
 end;
@@ -741,7 +699,7 @@ end;
 
 procedure TWinVerSpec.AppendToName(const AText: WideString);
 begin
-   if AText <> '' then self.fName := self.fName + ' ' + AText;
+   if AText <> '' then self.FName := self.FName + ' ' + AText;
 end;
 
 procedure TWinVerSpec.AppendToNameIf(const ACond: boolean; const AText_true, AText_false: WideString );
@@ -788,14 +746,14 @@ begin
    if not Assigned( LocProcArchDict ) then begin
        LocProcArchDict := TuxDictionary.Create();
        with LocProcArchDict do begin
-          Add( PROCESSOR_ARCHITECTURE_X86,         '32-bit' );
-          Add( PROCESSOR_ARCHITECTURE_ARM,         'ARM' );
-          Add( PROCESSOR_ARCHITECTURE_IA64,        'Intel Itanium-based' );
-          Add( PROCESSOR_ARCHITECTURE_X64,         '64-bit' );
-          Add( PROCESSOR_ARCHITECTURE_NEUTRAL,     'NEUTRAL' );
-          Add( PROCESSOR_ARCHITECTURE_ARM64,       'ARM64' );
-          Add( PROCESSOR_ARCHITECTURE_X86ONARM64,  'ARM64_Emu_X86' );
-          Add( PROCESSOR_ARCHITECTURE_UNKNOWN,     'UNKNOWN' );
+           Add( PROCESSOR_ARCHITECTURE_X86,         '32-bit'              );
+           Add( PROCESSOR_ARCHITECTURE_ARM,         'ARM'                 );
+           Add( PROCESSOR_ARCHITECTURE_IA64,        'Intel Itanium-based' );
+           Add( PROCESSOR_ARCHITECTURE_X64,         '64-bit'              );
+           Add( PROCESSOR_ARCHITECTURE_NEUTRAL,     'NEUTRAL'             );
+           Add( PROCESSOR_ARCHITECTURE_ARM64,       'ARM64'               );
+           Add( PROCESSOR_ARCHITECTURE_X86ONARM64,  'ARM64_Emu_X86'       );
+           Add( PROCESSOR_ARCHITECTURE_UNKNOWN,     'UNKNOWN'             );
        end;
    end;
    Result := LocProcArchDict;
