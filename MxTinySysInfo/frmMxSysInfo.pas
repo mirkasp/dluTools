@@ -72,7 +72,7 @@ uses SysUtils
    , lxSystemInfo
    , lxTinyProcessor
    , lxTinySystemInfo
-   , lxWinVer3
+   , lxWinVer4
    , dluFileInfo
    , siNodeIntf
    , siNodeParam
@@ -215,12 +215,16 @@ end;
 (******************************************************************************)
 procedure TSysInfoFrame.AddInfoOS();
   var node: PVirtualNode;
-      s   : AnsiString;
+      ts  : TStrings;
+      i   : integer;
 begin
-   with TWinVerSpec.Create do begin
-      node := AddInfoEx( nil, ALangStr[ sipOS, FLang ], Name + ' [' + CompilationInfo + ']' );
+   with TWindowsVersion.GetWinver() do begin
+      node := AddInfoEx( nil, ALangStr[ sipOS, FLang ], UnicodeString(FullName) + ' [' + UnicodeString(CompilationInfo) + ']' );
       VST.CheckType[ Node ] := ctButton;
-      for s in AllProperties do AddInfoEx( node, '', UnicodeString(s) );
+      ts := TStringList.Create();
+      AllProperties( ts );
+      for i:=0 to ts.Count-1 do AddInfoEx( node, '', UnicodeString( ts[i] ) );
+      ts.Free;
       Free;
    end;
 end;

@@ -33,8 +33,20 @@
         <UnitName Value="siNodeParam"/>
       </Item>
       <Item>
-        <Filename Value="lxWinVer3.pas"/>
-        <UnitName Value="lxWinVer3"/>
+        <Filename Value="lxKeyValueArray.pas"/>
+        <UnitName Value="lxKeyValueArray"/>
+      </Item>
+      <Item>
+        <Filename Value="lxWinVer4.pas"/>
+        <UnitName Value="lxWinVer4"/>
+      </Item>
+      <Item>
+        <Filename Value="lxWinVer32.pas"/>
+        <UnitName Value="lxWinVer32"/>
+      </Item>
+      <Item>
+        <Filename Value="lxWinVerNT.pas"/>
+        <UnitName Value="lxWinVerNT"/>
       </Item>
     </Files>
     <RequiredPkgs>
