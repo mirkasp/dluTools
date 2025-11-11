@@ -15,30 +15,30 @@ uses Classes;
 
 // https://www.sqlite.org/fileformat2.html#database_header
 
-type TuSDHF = (
-    hfMagicStr,
-    hfPageSize,
-    hfFileFormatW,
-    hfFileFormatR,
-    hfUnusedSpace,
-    hfEmbdPayloadMax,
-    hfEmbdPayloadMin,
-    hfLeafPayload,
-    hfChangeCounter,
-    hfSizeInPages,
-    hfTP_PageNumber,
-    hfFL_TotalPages,
-    hfSchemaCookie,
-    hfSchemaFormat,
-    hfPageCacheSize,
-    hfLargesRoot,
-    hfTextEncoding,
-    hfUserVersion,
-    hfIncVacuumMode,
-    hfApplicationID,
-    hfReserved,
-    hfVersion,
-    hfVersionNumber );
+type TuSDHF = ( hfMagicStr,
+                hfPageSize,
+                hfFileFormatW,
+                hfFileFormatR,
+                hfUnusedSpace,
+                hfEmbdPayloadMax,
+                hfEmbdPayloadMin,
+                hfLeafPayload,
+                hfChangeCounter,
+                hfSizeInPages,
+                hfTP_PageNumber,
+                hfFL_TotalPages,
+                hfSchemaCookie,
+                hfSchemaFormat,
+                hfPageCacheSize,
+                hfLargesRoot,
+                hfTextEncoding,
+                hfUserVersion,
+                hfIncVacuumMode,
+                hfApplicationID,
+                hfReserved,
+                hfVersion,
+                hfVersionNumber
+              );
 
 { TuSqlite3DbHeader }
 
