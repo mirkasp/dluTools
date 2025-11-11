@@ -11,12 +11,11 @@ interface
 
 uses Classes;
 
-function FileOwner( const FileName: UnicodeString; out Domain, Owner: UnicodeString; out RetCode: Cardinal ): boolean;
-function FileOwner( const FileName: UnicodeString; out Domain, Owner: UnicodeString): boolean;
-function FileOwner( const FileName: UnicodeString ): UnicodeString; overload;
-function FileOwner( const FileName: AnsiString ): AnsiString; overload;
+function FileOwner( const FileName: String; out Domain, Owner: String; out RetCode: Cardinal ): boolean; overload;
+function FileOwner( const FileName: String; out Domain, Owner: String ): boolean; overload;
 
-function FileOwnerEx( const AFileName: UnicodeString) : UnicodeString;
+function FileOwnerMini( const AFileName: UnicodeString ): UnicodeString; overload;
+function FileOwnerMini( const AFileName: AnsiString ): AnsiString; overload;
 
 implementation
 
@@ -34,9 +33,17 @@ function ConvertSidToStringSid( Sid: PSID; out StringSid: PChar): BOOL; stdcall;
 function SIDToString(ASID: PSID): string;
   var StringSid : PChar;
 begin
-//   if not ConvertSidToStringSid( ASID, StringSid ) then RaiseLastWin32Error;
-   if not ConvertSidToStringSid( ASID, StringSid ) then RaiseLastOSError;
-   Result := string(StringSid);
+   StringSid := nil;
+   if not ConvertSidToStringSid( ASID, StringSid )
+      then RaiseLastOSError;
+   try
+       Result := StringSid;
+   finally
+       if StringSid <> nil then
+          LocalFree( {%H-}HLOCAL( StringSid ) );
+   end;
+
+
 end;
 
 // https://forum.lazarus.freepascal.org/index.php?topic=20235.0
@@ -69,55 +76,59 @@ begin
                       nil, SizeNeeded,
                       {$IFDEF FPC}@{$ENDIF}SizeNeeded );
     RetCode := GetLastError();
-    if RetCode = ERROR_INSUFFICIENT_BUFFER
-       then GetMem( SecDescr, SizeNeeded )
-       else begin
-          Owner  := UnicodeString( SysErrorMessage( RetCode ) );
-          Domain := '';
-          Result := true;
-          exit;
-       end;
 
-    if not GetFileSecurityW( PChar(FileName),
-                             OWNER_SECURITY_INFORMATION,
-                             SecDescr, SizeNeeded,
-                             {$IFDEF FPC}@{$ENDIF}SizeNeeded )
-    then begin
-       RetCode := GetLastError();
-       FreeMem( SecDescr );
+    if RetCode <> ERROR_INSUFFICIENT_BUFFER then begin
+       Owner  := '';
+       Domain := '';
+       Result := false;
        exit;
     end;
 
-    if not GetSecurityDescriptorOwner( SecDescr,
-                                       OwnerSID,
-                                       {$IFDEF FPC}@{$ENDIF}OwnerDefault )
-    then begin
-       RetCode := GetLastError();
-       FreeMem( SecDescr );
-       exit;
-    end;
+    GetMem( SecDescr, SizeNeeded );
+    try
+        if not GetFileSecurityW( PChar(FileName),
+                                 OWNER_SECURITY_INFORMATION,
+                                 SecDescr, SizeNeeded,
+                                 {$IFDEF FPC}@{$ENDIF}SizeNeeded )
+        then begin
+           RetCode := GetLastError();
+           exit;
+        end;
 
-    cchName   := 0;
-    cchDomain := 0;
+        if not GetSecurityDescriptorOwner( SecDescr,
+                                           OwnerSID,
+                                           {$IFDEF FPC}@{$ENDIF}OwnerDefault )
+        then begin
+           RetCode := GetLastError();
+           exit;
+        end;
 
-    // Get Length
-    LookupAccountSidW( nil, OwnerSID, nil, cchName, nil, cchDomain, peUse );
-    RetCode := GetLastError();
-    if RetCode = ERROR_INSUFFICIENT_BUFFER then begin
-       SetLength( wName,   cchName - 1  );
-       SetLength( wDomain, cchDomain - 1 );
-       if LookupAccountSidW( nil, OwnerSID, PChar(wName), cchName, PChar(wDomain), cchDomain, peUse) then begin
-          Owner  := wName;
-          Domain := wDomain;
-          Result := true;
-       end else
-          RetCode := GetLastError();
-    end else begin
-      Owner  := SIDToString( OwnerSID );
-      Domain := '';
-      Result := true;
+        cchName   := 0;
+        cchDomain := 0;
+
+        // Get Length
+        LookupAccountSidW( nil, OwnerSID, nil, cchName, nil, cchDomain, peUse );
+        RetCode := GetLastError();
+        if RetCode = ERROR_INSUFFICIENT_BUFFER then begin
+
+           SetLength( wName,   cchName   ); // Alokuj bufor
+           SetLength( wDomain, cchDomain ); // Alokuj bufor
+
+           if LookupAccountSidW( nil, OwnerSID, PChar(wName), cchName, PChar(wDomain), cchDomain, peUse ) then begin
+              Owner  := PChar( wName   );   // <--- POPRAWKA (odczytuje do znaku null)
+              Domain := PChar( wDomain );   // <--- POPRAWKA (odczytuje do znaku null)
+              Result := true;
+           end else
+              RetCode := GetLastError();
+        end else begin
+           Owner  := SIDToString( OwnerSID );
+           Domain := '';
+           Result := true;
+        end;
+
+    finally
+        FreeMem( SecDescr );
     end;
-    FreeMem( SecDescr );
 end;
 {$ELSE}
 function GetFileOwner(const FileName: string; out Domain, Owner: string; out RetCode: Cardinal ): boolean;
@@ -131,45 +142,35 @@ end;
 
 
 {----------------------------}
-function FileOwner(const FileName: string; out Domain, Owner: string; out RetCode: Cardinal ): boolean;
+function FileOwner(const FileName: String; out Domain, Owner: String; out RetCode: Cardinal ): boolean;
 begin
   Result := GetFileOwner( FileName, Domain, Owner, RetCode );
-  if Result then begin
-     Domain := UnicodeString( Domain );  // UTF8Encode( Domain );
-     Owner  := UnicodeString( Owner );   // UTF8Encode( Owner );
-  end;
 end;
 
-function FileOwner(const FileName: string; out Domain, Owner: string): boolean;
+function FileOwner(const FileName: String; out Domain, Owner: String): boolean;
   var RetCode: Cardinal;
 begin
   Result := FileOwner( FileName, Domain, Owner, RetCode );
 end;
 
-function FileOwner(const FileName: string ): string; overload;
-  var sDomain: string;
+function FileOwnerMini( const AFileName: UnicodeString ): UnicodeString;
+  var sDomain: UnicodeString = '';
+      sOwner : UnicodeString = '';
+      RetCode: Cardinal;
 begin
-   if FileOwner( FileName, sDomain, Result ) then begin
-      if Length( sDomain ) > 0 then Result := Result + '@' + sDomain;
-   end else
-      Result := '';
+   if GetFileOwner( AFileName, sDomain, sOwner, RetCode )  then begin
+      Result := sOwner;
+      if Length(sDomain) > 0 then Result := Result + '@' + sDomain;
+   end else begin
+      Result := UnicodeFormat( '%s [0x%s]', [ SysErrorMessage( RetCode ), IntToHex(RetCode, 8) ] );
+   end;
 end;
 
-
-function FileOwner( const FileName: AnsiString ): AnsiString; overload;
+function FileOwnerMini( const AFileName: AnsiString) : AnsiString;
 begin
-   Result := AnsiString( FileOwner( UnicodeString( FileName ) ) );
+   Result := AnsiString( FileOwnerMini( UnicodeString( AFileName ) ) );
 end;
 
-function FileOwnerEx(const AFileName: UnicodeString): UnicodeString;
-  var sDomain : UnicodeString;
-      RetCode : Cardinal;
-begin
-   Result  := '';
-   if dluFileOwner.FileOwner( AFileName, sDomain, Result, RetCode )
-      then Result := Result + '@' + sDomain
-      else Result := 'Error - 0x' + UnicodeString( IntToHex( RetCode, 8 ) )
-end;
 
 
 end.
