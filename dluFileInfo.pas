@@ -27,8 +27,6 @@ type TFileVersionInfo = record
 
        FileAttributes   : Cardinal; // DWORD;
        FileSize         : UInt64;
-       //nFileSizeHigh : DWORD;
-       //nFileSizeLow : DWORD;
 
        AlternateFileName: string; // array[0..13] of AnsiCHAR;
        //
@@ -76,9 +74,6 @@ function GetPETypeStr( const APath: AnsiString ): AnsiString; overload;
 
 function AttrWin32( const x: Cardinal ): string;
 
-function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
-function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
-
 implementation
 
 uses
@@ -89,14 +84,8 @@ uses
   , LCLType
 {$ENDIF}
   , SysUtils
-  , dluDictionary
+  //, dluDictionary
   ;
-
-//{$IFDEF FPC}
-//const PathDelim = PathSeparator;
-//{$ELSE}
-//const PathDelim = SysUtils.PathDelim;
-//{$ENDIF}
 
 {$IFNDEF FPC}
 // from lazarus file 'defines.inc'
@@ -104,62 +93,112 @@ const VFT2_DRV_INPUTMETHOD       = $0b;
 const VFT2_DRV_VERSIONED_PRINTER = $0c;
 {$ENDIF}
 
-var FileTypeDict    : IuDictionary = nil;
-var FileSubTypeDict : IuDictionary = nil;
-var FontTypeDict    : IuDictionary = nil;
+//var FileTypeDict    : IuDictionary = nil;
+//var FileSubTypeDict : IuDictionary = nil;
+//var FontTypeDict    : IuDictionary = nil;
 
-function GetFileTypeDict(): IuDictionary;
+//function GetFileTypeDict(): IuDictionary;
+//begin
+//   if not Assigned( FileTypeDict ) then begin
+//      FileTypeDict := TuxDictionary.Create( 'Unknown file type value (%d)' );
+//      with FileTypeDict do begin
+//         Add( VFT_UNKNOWN,    'Unknown'             );
+//         Add( VFT_APP,        'Application'         );
+//         Add( VFT_DLL,        'DLL'                 );
+//         Add( VFT_DRV,        'DRV'                 );
+//         Add( VFT_FONT,       'Font'                 );
+//         Add( VFT_VXD,        'VXD'                 );
+//         Add( VFT_STATIC_LIB, 'Static-link Library' );
+//      end;
+//   end;
+//   Result := FileTypeDict;
+//end;
+
+function ErrStr( const AType: String; const AValue: Cardinal ): String;
 begin
-   if not Assigned( FileTypeDict ) then begin
-      FileTypeDict := TuxDictionary.Create( 'Unknown file type value (%d)' );
-      with FileTypeDict do begin
-         Add( VFT_UNKNOWN,    'Unknown'             );
-         Add( VFT_APP,        'Application'         );
-         Add( VFT_DLL,        'DLL'                 );
-         Add( VFT_DRV,        'DRV'                 );
-         Add( VFT_FONT,       'Font'                 );
-         Add( VFT_VXD,        'VXD'                 );
-         Add( VFT_STATIC_LIB, 'Static-link Library' );
-      end;
+   Result := 'Unknown ' + AType + ' type value (' + {%H-}IntToStr(AValue) + ')';
+end ;
+
+function GetFileTypeStr( const AValue: Cardinal ): String;
+begin
+   case AValue of
+      VFT_UNKNOWN   : Result := 'Unknown';
+      VFT_APP       : Result := 'Application';
+      VFT_DLL       : Result := 'DLL';
+      VFT_DRV       : Result := 'DRV';
+      VFT_FONT      : Result := 'Font';
+      VFT_VXD       : Result := 'VXD';
+      VFT_STATIC_LIB: Result := 'Static-link Library';
+      else            Result := ErrStr( 'file', AValue );
    end;
-   Result := FileTypeDict;
 end;
 
-function GetFileSubTypeDict(): IuDictionary;
+//function GetFileSubTypeDict(): IuDictionary;
+//begin
+//   if not Assigned( FileSubTypeDict ) then begin
+//      FileSubTypeDict := TuxDictionary.Create( 'Unknown file subtype value (%d)' );
+//      with FileSubTypeDict do begin
+//         Add( VFT2_UNKNOWN,               'Unknown Driver'           );
+//         Add( VFT2_DRV_PRINTER,           'Printer Driver'           );
+//         Add( VFT2_DRV_KEYBOARD,          'Keyboard Driver'          );
+//         Add( VFT2_DRV_LANGUAGE,          'Language Driver'          );
+//         Add( VFT2_DRV_DISPLAY,           'Display Driver'           );
+//         Add( VFT2_DRV_MOUSE,             'Mouse Driver'             );
+//         Add( VFT2_DRV_NETWORK,           'Network Driver'           );
+//         Add( VFT2_DRV_SYSTEM,            'System Driver'            );
+//         Add( VFT2_DRV_INSTALLABLE,       'InstallableDriver'        );
+//         Add( VFT2_DRV_SOUND,             'Sound Driver'             );
+//         Add( VFT2_DRV_COMM,              'Communications Driver'    );
+//         Add( VFT2_DRV_INPUTMETHOD,       'Input method (?)'         );
+//         Add( VFT2_DRV_VERSIONED_PRINTER, 'Versioned Printer Driver' );
+//      end;
+//   end;
+//   Result := FileSubTypeDict;
+//end;
+
+function GetFileSubTypeStr( const AValue: Cardinal ): String;
 begin
-   if not Assigned( FileSubTypeDict ) then begin
-      FileSubTypeDict := TuxDictionary.Create( 'Unknown file subtype value (%d)' );
-      with FileSubTypeDict do begin
-         Add( VFT2_UNKNOWN,               'Unknown Driver'           );
-         Add( VFT2_DRV_PRINTER,           'Printer Driver'           );
-         Add( VFT2_DRV_KEYBOARD,          'Keyboard Driver'          );
-         Add( VFT2_DRV_LANGUAGE,          'Language Driver'          );
-         Add( VFT2_DRV_DISPLAY,           'Display Driver'           );
-         Add( VFT2_DRV_MOUSE,             'Mouse Driver'             );
-         Add( VFT2_DRV_NETWORK,           'Network Driver'           );
-         Add( VFT2_DRV_SYSTEM,            'System Driver'            );
-         Add( VFT2_DRV_INSTALLABLE,       'InstallableDriver'        );
-         Add( VFT2_DRV_SOUND,             'Sound Driver'             );
-         Add( VFT2_DRV_COMM,              'Communications Driver'    );
-         Add( VFT2_DRV_INPUTMETHOD,       'Input method (?)'         );
-         Add( VFT2_DRV_VERSIONED_PRINTER, 'Versioned Printer Driver' );
-      end;
+   case AValue of
+      VFT2_UNKNOWN               : Result := 'Unknown Driver';
+      VFT2_DRV_PRINTER           : Result := 'Printer Driver';
+      VFT2_DRV_KEYBOARD          : Result := 'Keyboard Driver';
+      VFT2_DRV_LANGUAGE          : Result := 'Language Driver';
+      VFT2_DRV_DISPLAY           : Result := 'Display Driver';
+      VFT2_DRV_MOUSE             : Result := 'Mouse Driver';
+      VFT2_DRV_NETWORK           : Result := 'Network Driver';
+      VFT2_DRV_SYSTEM            : Result := 'System Driver';
+      VFT2_DRV_INSTALLABLE       : Result := 'InstallableDriver';
+      VFT2_DRV_SOUND             : Result := 'Sound Driver';
+      VFT2_DRV_COMM              : Result := 'Communications Driver';
+      VFT2_DRV_INPUTMETHOD       : Result := 'Input method (?)';
+      VFT2_DRV_VERSIONED_PRINTER : Result := 'Versioned Printer Driver';
+      else                         Result := ErrStr( 'file sub-', AValue );
    end;
-   Result := FileSubTypeDict;
 end;
 
-function GetFontTypeDict(): IuDictionary;
+//function GetFontTypeDict(): IuDictionary;
+//begin
+//   if not Assigned( FontTypeDict ) then begin
+//      FontTypeDict := TuxDictionary.Create( 'Unknown font type value (%d)' );
+//      with FontTypeDict do begin
+//         Add( VFT2_UNKNOWN,         'Unknown Font'  );
+//         Add( VFT2_FONT_RASTER,     'Raster Font'   );
+//         Add( VFT2_FONT_VECTOR,     'Vector Font'   );
+//         Add( VFT2_FONT_TRUETYPE,   'Truetype Font' );
+//      end;
+//   end;
+//   Result := FontTypeDict;
+//end;
+
+function GetFontTypeStr( const AValue: Cardinal ): String;
 begin
-   if not Assigned( FontTypeDict ) then begin
-      FontTypeDict := TuxDictionary.Create( 'Unknown font type value (%d)' );
-      with FontTypeDict do begin
-         Add( VFT2_UNKNOWN,         'Unknown Font'  );
-         Add( VFT2_FONT_RASTER,     'Raster Font'   );
-         Add( VFT2_FONT_VECTOR,     'Vector Font'   );
-         Add( VFT2_FONT_TRUETYPE,   'Truetype Font' );
-      end;
-   end;
-   Result := FontTypeDict;
+   case AValue of
+      VFT2_UNKNOWN       : Result := 'Unknown Font';
+      VFT2_FONT_RASTER   : Result := 'Raster Font';
+      VFT2_FONT_VECTOR   : Result := 'Vector Font';
+      VFT2_FONT_TRUETYPE : Result := 'Truetype Font';
+      else                 Result := ErrStr( 'font', AValue );
+   end ;
 end;
 
 function xFileTimeToDateTime( const AFileTime : TFileTime ) : TDateTime;
@@ -171,74 +210,6 @@ begin
    if not FileTimeToSystemTime( _time, _systime{%H-} )
       then RaiseLastOSError;
    Result := SystemTimeToDateTime( _systime );
-end;
-
-
-function GetNextItem( const ASource: String;
-                      const ASeparator: char;
-                      var APos: integer;
-                      out RetVal: String): boolean;
-  var i: integer;
-begin
-   i := APos;
-   while APos <= Length( ASource ) do
-      if ASource[ APos ] = ASeparator
-         then break
-         else Inc(APos);
-   Result := i < APos;
-   if Result then begin
-      RetVal := Copy( ASource, i, APos-i );
-      Inc( APos );
-   end;
-end;
-
-//function GetSubString( const ASource: String;
-//                       const ASepararator: Char;
-//                       var APos: integer;
-//                       out RetStr: String ): boolean;
-//  var i   : integer;
-//      k   : integer;
-//      boo : boolean;
-//begin
-//   i   := APos;
-//   k   := Length( ASource );
-//   boo := (APos <= k);
-//   while boo and (ASource[APos] <> ASepararator) do begin
-//      Inc( APos );
-//      boo := (APos <= k);
-//   end;
-//end;
-
-function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
-   var i : integer;
-       s : String;
-begin
-   Result := '';
-   s := '';
-   if Length(AFolders) > 0 then begin
-      s := AFolders[0] + PathSeparator;
-      for i:=1 to Length( AFolders )-1 do s := s + AFolders[i] + PathSeparator;
-   end;
-   if APathEnv then
-      s := s + GetEnvironmentVariable( UTF8Decode( 'PATH' ) );
-
-   if not SearchForFile( s, AFileName, Result ) then Result := '';
-
-end;
-
-
-function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
-  var actPos : integer;
-      sp : String;
-begin
-   VPath  := '';
-   actPos := 1;
-   sp     := UnicodeStringReplace( ASearchPaths, PathSeparator+PathSeparator, PathSeparator, [rfReplaceAll] );
-   Result := false;
-   while not Result and GetNextItem( sp, PathSeparator, actPos, VPath ) do begin
-       VPath  := IncludeTrailingPathDelimiter(VPath) + AFileName;
-       Result := FileExists( VPath )
-   end;
 end;
 
 function GetFileInfo( const AFileName: string) : TFileVersionInfo;
@@ -265,32 +236,33 @@ end;
 procedure TFileVersionInfo.Clear();
 begin
   // Initialize the Result
-  with self do begin
-    FileName         := '';
-    IsStdFileInfo    := false;
-    IsVersionInfo    := false;
-    FileType         := '';
-    FileExeType      := '';
-    FileFunction     := '';
-    CompanyName      := '';
-    FileDescription  := '';
-    FileVersion      := '';
-    InternalName     := '';
-    LegalCopyRight   := '';
-    LegalTradeMarks  := '';
-    OriginalFileName := '';
-    ProductName      := '';
-    ProductVersion   := '';
-    Comments         := '';
-    SpecialBuildStr  := '';
-    PrivateBuildStr  := '';
-    DebugBuild       := False;
-    Patched          := False;
-    PreRelease       := False;
-    SpecialBuild     := False;
-    PrivateBuild     := False;
-    InfoInferred     := False;
-  end;
+  Self := Default( TFileVersionInfo );
+  //with self do begin
+  //  FileName         := '';
+  //  IsStdFileInfo    := false;
+  //  IsVersionInfo    := false;
+  //  FileType         := '';
+  //  FileExeType      := '';
+  //  FileFunction     := '';
+  //  CompanyName      := '';
+  //  FileDescription  := '';
+  //  FileVersion      := '';
+  //  InternalName     := '';
+  //  LegalCopyRight   := '';
+  //  LegalTradeMarks  := '';
+  //  OriginalFileName := '';
+  //  ProductName      := '';
+  //  ProductVersion   := '';
+  //  Comments         := '';
+  //  SpecialBuildStr  := '';
+  //  PrivateBuildStr  := '';
+  //  DebugBuild       := False;
+  //  Patched          := False;
+  //  PreRelease       := False;
+  //  SpecialBuild     := False;
+  //  PrivateBuild     := False;
+  //  InfoInferred     := False;
+  //end;
 
 end;
 
@@ -356,9 +328,9 @@ procedure TFileVersionInfo.ReadFileVersionInfo(const AFileName: string);
           VFT_UNKNOWN,
           VFT_APP,
           VFT_DLL,
-          VFT_STATIC_LIB : Result := UnicodeString( GetFileTypeDict().Value( dwFileType ) );
-          VFT_DRV        : Result := UnicodeString( GetFileSubTypeDict().Value( dwFileSubtype ) );
-          VFT_FONT       : Result := UnicodeString( GetFontTypeDict().Value( dwFileSubtype ) );
+          VFT_STATIC_LIB : Result := GetFileTypeStr( dwFileType ); //UnicodeString( GetFileTypeDict().Value( dwFileType ) );
+          VFT_DRV        : Result := GetFileSubTypeStr( dwFileSubtype ); // UnicodeString( GetFileSubTypeDict().Value( dwFileSubtype ) );
+          VFT_FONT       : Result := GetFontTypeStr( dwFileSubtype );  // UnicodeString( GetFontTypeDict().Value( dwFileSubtype ) );
           VFT_VXD        : Result := 'Virtual Device Identifier = ' +  UnicodeString( IntToHex( dwFileSubtype, 8 ) );
           else             Result := 'Unknown value';
         end;
