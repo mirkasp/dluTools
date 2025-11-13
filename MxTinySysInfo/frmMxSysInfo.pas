@@ -74,6 +74,7 @@ uses SysUtils
    , lxTinySystemInfo
    , lxWinVer4
    , dluFileInfo
+   , dluFileLocator
    , siNodeIntf
    , siNodeParam
    ;
@@ -296,7 +297,7 @@ procedure TSysInfoFrame.AddFileInfo(const AFileName: string; const AFileDesc: st
   const cNotFound = '???';
   var pdf, floc: UnicodeString;
 begin
-   pdf := dluFileInfo.LookForFile( AFileName, true, [ '.' ] );
+   pdf := LookForFile( AFileName, true, [ '.' ] );
 
    if pdf <> '' then begin
       floc := GetFileInfo( pdf ).FileVersion;
