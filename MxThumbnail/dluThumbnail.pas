@@ -112,6 +112,7 @@ uses SysUtils
    , BGRABitmapTypes
    , fpeMetadata
    , dluFileInfo
+   , dluFileLocator
    ;
 
 const DEFAULT_MAX_WIDTH  = 200;
@@ -454,7 +455,7 @@ function TuPdfThumbnail.OpenPdf(const AFileName: UnicodeString): boolean;
 begin
    Result := false;
    if fPDFiumDllFile = '' then begin
-      fPDFiumDllFile := dluFileInfo.LookForFile( PDFiumDLL, true, [ '.' ] ) ;
+      fPDFiumDllFile := LookForFile( PDFiumDLL, true, [ '.' ] ) ;
       if fPDFiumDllFile = '' then begin
          DoOnLog( ErrorStr );
          exit;
