@@ -41,6 +41,7 @@ implementation
 
 uses SysUtils
    , dluFileInfo
+   , dluFileLocator
    ;
 
 const SQLiteEngDefaultName = 'sqlite3.dll';
@@ -98,15 +99,16 @@ begin
 end;
 
 procedure TuSQLiteInfo.PrepareSQLiteEngInfo;
-  var s : UnicodeString;
+  //var s : UnicodeString;
 begin
    if fSQLiteEngInt = '' then begin
       if FileExists( SQLiteEngDefaultName ) then begin
          fSQLiteEngInt := ExtractFilePath( ParamStr(0) ) + SQLiteEngDefaultName;
       end else begin
-         if SearchForFile( GetEnvironmentVariable( UnicodeString('PATH') ), SQLiteEngDefaultName, s ) then begin
-            fSQLiteEngInt := s;
-         end;
+         //if SearchForFile( GetEnvironmentVariable( UnicodeString('PATH') ), SQLiteEngDefaultName, s ) then begin
+         //   fSQLiteEngInt := s;
+         //end;
+         fSQLiteEngInt := LookForFile( SQLiteEngDefaultName, true, [] );
       end;
    end;
 
