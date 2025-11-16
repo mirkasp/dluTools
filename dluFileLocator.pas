@@ -15,7 +15,8 @@ function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String
 
 implementation
 
-uses SysUtils;
+uses SysUtils
+   ;
 
 function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
    var i : integer;

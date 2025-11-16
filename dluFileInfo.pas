@@ -93,27 +93,6 @@ const VFT2_DRV_INPUTMETHOD       = $0b;
 const VFT2_DRV_VERSIONED_PRINTER = $0c;
 {$ENDIF}
 
-//var FileTypeDict    : IuDictionary = nil;
-//var FileSubTypeDict : IuDictionary = nil;
-//var FontTypeDict    : IuDictionary = nil;
-
-//function GetFileTypeDict(): IuDictionary;
-//begin
-//   if not Assigned( FileTypeDict ) then begin
-//      FileTypeDict := TuxDictionary.Create( 'Unknown file type value (%d)' );
-//      with FileTypeDict do begin
-//         Add( VFT_UNKNOWN,    'Unknown'             );
-//         Add( VFT_APP,        'Application'         );
-//         Add( VFT_DLL,        'DLL'                 );
-//         Add( VFT_DRV,        'DRV'                 );
-//         Add( VFT_FONT,       'Font'                 );
-//         Add( VFT_VXD,        'VXD'                 );
-//         Add( VFT_STATIC_LIB, 'Static-link Library' );
-//      end;
-//   end;
-//   Result := FileTypeDict;
-//end;
-
 function ErrStr( const AType: String; const AValue: Cardinal ): String;
 begin
    Result := 'Unknown ' + AType + ' type value (' + {%H-}IntToStr(AValue) + ')';
@@ -132,29 +111,6 @@ begin
       else            Result := ErrStr( 'file', AValue );
    end;
 end;
-
-//function GetFileSubTypeDict(): IuDictionary;
-//begin
-//   if not Assigned( FileSubTypeDict ) then begin
-//      FileSubTypeDict := TuxDictionary.Create( 'Unknown file subtype value (%d)' );
-//      with FileSubTypeDict do begin
-//         Add( VFT2_UNKNOWN,               'Unknown Driver'           );
-//         Add( VFT2_DRV_PRINTER,           'Printer Driver'           );
-//         Add( VFT2_DRV_KEYBOARD,          'Keyboard Driver'          );
-//         Add( VFT2_DRV_LANGUAGE,          'Language Driver'          );
-//         Add( VFT2_DRV_DISPLAY,           'Display Driver'           );
-//         Add( VFT2_DRV_MOUSE,             'Mouse Driver'             );
-//         Add( VFT2_DRV_NETWORK,           'Network Driver'           );
-//         Add( VFT2_DRV_SYSTEM,            'System Driver'            );
-//         Add( VFT2_DRV_INSTALLABLE,       'InstallableDriver'        );
-//         Add( VFT2_DRV_SOUND,             'Sound Driver'             );
-//         Add( VFT2_DRV_COMM,              'Communications Driver'    );
-//         Add( VFT2_DRV_INPUTMETHOD,       'Input method (?)'         );
-//         Add( VFT2_DRV_VERSIONED_PRINTER, 'Versioned Printer Driver' );
-//      end;
-//   end;
-//   Result := FileSubTypeDict;
-//end;
 
 function GetFileSubTypeStr( const AValue: Cardinal ): String;
 begin
@@ -175,20 +131,6 @@ begin
       else                         Result := ErrStr( 'file sub-', AValue );
    end;
 end;
-
-//function GetFontTypeDict(): IuDictionary;
-//begin
-//   if not Assigned( FontTypeDict ) then begin
-//      FontTypeDict := TuxDictionary.Create( 'Unknown font type value (%d)' );
-//      with FontTypeDict do begin
-//         Add( VFT2_UNKNOWN,         'Unknown Font'  );
-//         Add( VFT2_FONT_RASTER,     'Raster Font'   );
-//         Add( VFT2_FONT_VECTOR,     'Vector Font'   );
-//         Add( VFT2_FONT_TRUETYPE,   'Truetype Font' );
-//      end;
-//   end;
-//   Result := FontTypeDict;
-//end;
 
 function GetFontTypeStr( const AValue: Cardinal ): String;
 begin
@@ -237,54 +179,26 @@ procedure TFileVersionInfo.Clear();
 begin
   // Initialize the Result
   Self := Default( TFileVersionInfo );
-  //with self do begin
-  //  FileName         := '';
-  //  IsStdFileInfo    := false;
-  //  IsVersionInfo    := false;
-  //  FileType         := '';
-  //  FileExeType      := '';
-  //  FileFunction     := '';
-  //  CompanyName      := '';
-  //  FileDescription  := '';
-  //  FileVersion      := '';
-  //  InternalName     := '';
-  //  LegalCopyRight   := '';
-  //  LegalTradeMarks  := '';
-  //  OriginalFileName := '';
-  //  ProductName      := '';
-  //  ProductVersion   := '';
-  //  Comments         := '';
-  //  SpecialBuildStr  := '';
-  //  PrivateBuildStr  := '';
-  //  DebugBuild       := False;
-  //  Patched          := False;
-  //  PreRelease       := False;
-  //  SpecialBuild     := False;
-  //  PrivateBuild     := False;
-  //  InfoInferred     := False;
-  //end;
-
 end;
 
 procedure TFileVersionInfo.AsString( const AStrings : TStrings) ;
 begin
    if IsVersionInfo then begin
-
-      AStrings.AddPair( 'File Type',          AnsiString( self.FileType + ' ' + GetPETypeStr( self.FileName ) ) );
-      AStrings.AddPair( 'File Function',      AnsiString( self.FileFunction     ) );
-      AStrings.AddPair( 'File Exe Type',      AnsiString( self.FileExeType      ) );
-      AStrings.AddPair( 'Company Name',       AnsiString( self.CompanyName      ) );
-      AStrings.AddPair( 'File Description',   AnsiString( self.FileDescription  ) );
-      AStrings.AddPair( 'File Version',       AnsiString( self.FileVersion      ) );
-      AStrings.AddPair( 'Internal Name',      AnsiString( self.InternalName     ) );
-      AStrings.AddPair( 'Legal CopyRight',    AnsiString( self.LegalCopyRight   ) );
-      AStrings.AddPair( 'Legal TradeMarks',   AnsiString( self.LegalTradeMarks  ) );
-      AStrings.AddPair( 'Original File Name', AnsiString( self.OriginalFileName ) );
-      AStrings.AddPair( 'Product Name',       AnsiString( self.ProductName      ) );
-      AStrings.AddPair( 'Product Version',    AnsiString( self.ProductVersion   ) );
-      AStrings.AddPair( 'Comments',           AnsiString( self.Comments         ) );
-      AStrings.AddPair( 'Special BuildStr',   AnsiString( self.SpecialBuildStr  ) );
-      AStrings.AddPair( 'Private BuildStr',   AnsiString( self.PrivateBuildStr  ) );
+      AStrings.AddPair( 'File Type',          UTF8Encode( self.FileType + ' ' + GetPETypeStr( self.FileName ) ) );
+      AStrings.AddPair( 'File Function',      UTF8Encode( self.FileFunction     ) );
+      AStrings.AddPair( 'File Exe Type',      UTF8Encode( self.FileExeType      ) );
+      AStrings.AddPair( 'Company Name',       UTF8Encode( self.CompanyName      ) );
+      AStrings.AddPair( 'File Description',   UTF8Encode( self.FileDescription  ) );
+      AStrings.AddPair( 'File Version',       UTF8Encode( self.FileVersion      ) );
+      AStrings.AddPair( 'Internal Name',      UTF8Encode( self.InternalName     ) );
+      AStrings.AddPair( 'Legal CopyRight',    UTF8Encode( self.LegalCopyRight   ) );
+      AStrings.AddPair( 'Legal TradeMarks',   UTF8Encode( self.LegalTradeMarks  ) );
+      AStrings.AddPair( 'Original File Name', UTF8Encode( self.OriginalFileName ) );
+      AStrings.AddPair( 'Product Name',       UTF8Encode( self.ProductName      ) );
+      AStrings.AddPair( 'Product Version',    UTF8Encode( self.ProductVersion   ) );
+      AStrings.AddPair( 'Comments',           UTF8Encode( self.Comments         ) );
+      AStrings.AddPair( 'Special BuildStr',   UTF8Encode( self.SpecialBuildStr  ) );
+      AStrings.AddPair( 'Private BuildStr',   UTF8Encode( self.PrivateBuildStr  ) );
    end else
       AStrings.AddPair( 'Version info', '--- not available'    );
 

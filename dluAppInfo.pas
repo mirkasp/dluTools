@@ -23,7 +23,6 @@ implementation
 uses dluFileInfo
 {$IFNDEF FPC}
    , SysUtils
-   //, mkSysInfo
 {$ENDIF}
    , dluCompilerInfo
    ;
