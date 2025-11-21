@@ -1,176 +1,133 @@
 unit dluFileOwner;
 
 {$IFDEF FPC}
-  {$mode objfpc}{$H+}
-  {$modeswitch UNICODESTRINGS+}
-{$ELSE}
-  {$MESSAGE HINT 'Tested only for LAZARUS!'}
+  {$MODE OBJFPC}{$H+}
+  {$MODESWITCH UNICODESTRINGS+}
 {$ENDIF}
 
 interface
 
-uses Classes;
+/// <summary>
+/// Pobiera domenę i nazwę właściciela pliku.
+/// Zwraca True jeśli się powiodło.
+/// </summary>
+function GetFileOwner(const AFileName: String; out ADomain, AOwner: String): Boolean;
 
-function FileOwner( const FileName: String; out Domain, Owner: String; out RetCode: Cardinal ): boolean; overload;
-function FileOwner( const FileName: String; out Domain, Owner: String ): boolean; overload;
-
-function FileOwnerMini( const AFileName: UnicodeString ): UnicodeString; overload;
-function FileOwnerMini( const AFileName: AnsiString ): AnsiString; overload;
+/// <summary>
+/// Zwraca sformatowany ciąg "DOMENA\Użytkownik" lub sam "Użytkownik".
+/// W przypadku błędu zwraca sformatowany komunikat błędu.
+/// </summary>
+function GetFileOwnerStr(const AFileName: UnicodeString): UnicodeString; overload;
+function GetFileOwnerStr(const AFileName: AnsiString): AnsiString; overload;
 
 implementation
 
-uses
-{$IFDEF MSWINDOWS}
-   Windows,
-{$ENDIF}
-   SysUtils
+uses SysUtils
+   , Windows
    ;
 
-{$IFDEF MSWINDOWS}
 
-function ConvertSidToStringSid( Sid: PSID; out StringSid: PChar): BOOL; stdcall;  external 'ADVAPI32.DLL' name {$IFDEF UNICODE} 'ConvertSidToStringSidW'{$ELSE} 'ConvertSidToStringSidA'{$ENDIF};
+// Jawnie importujemy wersję W (Wide) funkcji WinAPI
+function ConvertSidToStringSidW(Sid: PSID; out StringSid: LPWSTR): BOOL; stdcall; external 'advapi32.dll';
 
-function SIDToString(ASID: PSID): string;
-  var StringSid : PChar;
+//<summary>
+//Konwertuje SID na string
+//</summary>
+function SafeSIDToString(ASID: PSID): String;
+  var StringSid: LPWSTR; //PChar;
 begin
-   StringSid := nil;
-   if not ConvertSidToStringSid( ASID, StringSid )
-      then RaiseLastOSError;
-   try
-       Result := StringSid;
-   finally
-       if StringSid <> nil then
-          LocalFree( {%H-}HLOCAL( StringSid ) );
+   Result := '';
+   if Assigned( ASID ) then begin
+      StringSid := nil;
+      if ConvertSidToStringSidW( ASID, StringSid ) then begin
+         try
+            Result := StringSid;
+         finally
+            LocalFree( {%H-}HLOCAL(StringSid) );
+         end;
+      end;
    end;
-
-
 end;
 
-// https://forum.lazarus.freepascal.org/index.php?topic=20235.0
-
-function GetFileOwner( const FileName: string; out Domain, Owner: string; out RetCode: Cardinal ): boolean;
-  var SecDescr     : PSecurityDescriptor;
+function GetFileOwner(const AFileName: String; out ADomain, AOwner: String): Boolean;
+  var SecDesc      : TBytes; // Automatycznie zarządzany bufor
+      SizeNeeded   : DWORD;
       OwnerSID     : PSID;
       OwnerDefault : BOOL;
-      SizeNeeded   : DWORD;
-
-      peUse        : SID_NAME_USE;
-      cchDomain    : DWORD;
-      cchName      : DWORD;
-      wName        : String = '';
-      wDomain      : String = '';
-
+      PeUse        : SID_NAME_USE;
+      CchName,
+      CchDomain    : DWORD;
+      BufName,
+      BufDomain    : array of WideChar; // Bufory dla API Unicode
 begin
-    Result := false;
-    Owner  := '';
-    Domain := '';
+   Result     := False;
+   ADomain    := '';
+   AOwner     := '';
+   SizeNeeded := 0;
 
-    // local variables
-    SizeNeeded := 0;
-    OwnerSID   := nil;
-    peUse      := SidTypeUser;
+   // 1. Pobierz rozmiar potrzebny na Security Descriptor
+   GetFileSecurityW( PWideChar( AFileName ), OWNER_SECURITY_INFORMATION, nil, 0, @SizeNeeded);
+  
+   // Jeśli błąd jest inny niż "za mały bufor" i rozmiar to 0, to coś poszło nie tak (np. brak pliku)
+   if (GetLastError() <> ERROR_INSUFFICIENT_BUFFER) and (SizeNeeded = 0) then Exit;
 
-    // Get Length
-    GetFileSecurityW( PChar(FileName),
-                      OWNER_SECURITY_INFORMATION,
-                      nil, SizeNeeded,
-                      {$IFDEF FPC}@{$ENDIF}SizeNeeded );
-    RetCode := GetLastError();
+   // 2. Alokuj pamięć (SetLength robi to automatycznie i zwolni przy wyjściu z funkcji)
+   SetLength( SecDesc, SizeNeeded );
 
-    if RetCode <> ERROR_INSUFFICIENT_BUFFER then begin
-       Owner  := '';
-       Domain := '';
-       Result := false;
-       exit;
-    end;
+   // 3. Pobierz faktyczne dane
+   if not GetFileSecurityW( PWideChar( AFileName ), OWNER_SECURITY_INFORMATION, Windows.PSecurityDescriptor( SecDesc ), SizeNeeded, @SizeNeeded)
+      then Exit;
 
-    GetMem( SecDescr, SizeNeeded );
-    try
-        if not GetFileSecurityW( PChar(FileName),
-                                 OWNER_SECURITY_INFORMATION,
-                                 SecDescr, SizeNeeded,
-                                 {$IFDEF FPC}@{$ENDIF}SizeNeeded )
-        then begin
-           RetCode := GetLastError();
-           exit;
-        end;
+   // 4. Wyciągnij SID właściciela z deskryptora
+   OwnerSID     := nil;
+   OwnerDefault := False;
+   if not GetSecurityDescriptorOwner(PSecurityDescriptor(SecDesc), OwnerSID, @OwnerDefault)
+      then Exit;
 
-        if not GetSecurityDescriptorOwner( SecDescr,
-                                           OwnerSID,
-                                           {$IFDEF FPC}@{$ENDIF}OwnerDefault )
-        then begin
-           RetCode := GetLastError();
-           exit;
-        end;
+   if OwnerSID = nil
+      then Exit;
 
-        cchName   := 0;
-        cchDomain := 0;
+   // 5. Pobierz nazwę użytkownika i domenę (LookupAccountSid)
+   CchName   := 0;
+   CchDomain := 0;
+   PeUse     := SidTypeUser;
 
-        // Get Length
-        LookupAccountSidW( nil, OwnerSID, nil, cchName, nil, cchDomain, peUse );
-        RetCode := GetLastError();
-        if RetCode = ERROR_INSUFFICIENT_BUFFER then begin
+   // Pierwsze wywołanie tylko po rozmiary - oczekujemy False i błędu INSUFFICIENT_BUFFER
+   if (not LookupAccountSidW(nil, OwnerSID, nil, CchName, nil, CchDomain, PeUse)) and (GetLastError() = ERROR_INSUFFICIENT_BUFFER) then begin
 
-           SetLength( wName,   cchName   ); // Alokuj bufor
-           SetLength( wDomain, cchDomain ); // Alokuj bufor
+      SetLength( BufName,   CchName   );
+      SetLength( BufDomain, CchDomain );
 
-           if LookupAccountSidW( nil, OwnerSID, PChar(wName), cchName, PChar(wDomain), cchDomain, peUse ) then begin
-              Owner  := PChar( wName   );   // <--- POPRAWKA (odczytuje do znaku null)
-              Domain := PChar( wDomain );   // <--- POPRAWKA (odczytuje do znaku null)
-              Result := true;
-           end else
-              RetCode := GetLastError();
-        end else begin
-           Owner  := SIDToString( OwnerSID );
-           Domain := '';
-           Result := true;
-        end;
-
-    finally
-        FreeMem( SecDescr );
-    end;
-end;
-{$ELSE}
-function GetFileOwner(const FileName: string; out Domain, Owner: string; out RetCode: Cardinal ): boolean;
-begin
-   Domain  := '';
-   Owner   := '';
-   RetCode := 0;
-   Result  := true;
-end;
-{$ENDIF}
-
-
-{----------------------------}
-function FileOwner(const FileName: String; out Domain, Owner: String; out RetCode: Cardinal ): boolean;
-begin
-  Result := GetFileOwner( FileName, Domain, Owner, RetCode );
-end;
-
-function FileOwner(const FileName: String; out Domain, Owner: String): boolean;
-  var RetCode: Cardinal;
-begin
-  Result := FileOwner( FileName, Domain, Owner, RetCode );
-end;
-
-function FileOwnerMini( const AFileName: UnicodeString ): UnicodeString;
-  var sDomain: UnicodeString = '';
-      sOwner : UnicodeString = '';
-      RetCode: Cardinal;
-begin
-   if GetFileOwner( AFileName, sDomain, sOwner, RetCode )  then begin
-      Result := sOwner;
-      if Length(sDomain) > 0 then Result := Result + '@' + sDomain;
-   end else begin
-      Result := UnicodeFormat( '%s [0x%s]', [ SysErrorMessage( RetCode ), IntToHex(RetCode, 8) ] );
+      if LookupAccountSidW(nil, OwnerSID, PWideChar(BufName), CchName, PWideChar(BufDomain), CchDomain, PeUse) then begin
+         AOwner  := PWideChar( BufName   );
+         ADomain := PWideChar( BufDomain );
+         Result  := True;
+      end;
    end;
+
+   // Fallback: Jeśli nie udało się rozwiązać nazwy (np. brak dostępu do DC), zwróć SID
+   if not Result then begin
+      AOwner := SafeSidToString(OwnerSID);
+      Result := (AOwner <> '');
+   end;
+
 end;
 
-function FileOwnerMini( const AFileName: AnsiString) : AnsiString;
+function GetFileOwnerStr(const AFileName: UnicodeString): UnicodeString;
+  var Domain, Owner: String;
 begin
-   Result := AnsiString( FileOwnerMini( UnicodeString( AFileName ) ) );
+   if GetFileOwner(AFileName, Domain, Owner) then begin
+      if Domain <> ''
+         then Result := Domain + '\' + Owner // Standardowy format Windows
+         else Result := Owner;
+   end else begin
+      Result := UnicodeFormat('Error: %s', [SysErrorMessage(GetLastError)]);
+  end;
 end;
 
-
+function GetFileOwnerStr(const AFileName: AnsiString): AnsiString;
+begin
+   Result := UTF8Encode( GetFileOwnerStr( UTF8Decode( AFileName ) ) );
+end;
 
 end.
