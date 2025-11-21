@@ -39,8 +39,6 @@ type TuThumbnail = class
        fStatusStr       : string;
        //
        fOnLog           : TGetStrProc;
-       //fFramed          : boolean;
-       //fFrameColor      : TColor;
        procedure DoOnLog( const AText: string ); dynamic; overload;
        procedure DoOnLog( const Fmt: string; const AValues: array of const ); dynamic; overload;
        procedure Initialize(); virtual;
