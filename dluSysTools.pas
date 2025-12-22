@@ -36,7 +36,7 @@ const aDescription: array[ 1..6 ] of UnicodeString = ( 'Kb', 'Mb', 'Gb', 'Tb', '
 const aPowers     : array[ 1..6 ] of Int64  = ( {Kb} DTSD,
                                                 {Mb} DTSD * DTSD,
                                                 {Gb} DTSD * DTSD * DTSD,
-                                                {Tb} DTSD * DTSD * DTSD * 1014,
+                                                {Tb} DTSD * DTSD * DTSD * DTSD,
                                                 {Pb} DTSD * DTSD * DTSD * DTSD * DTSD,
                                                 {Eb} DTSD * DTSD * DTSD * DTSD * DTSD * DTSD );
 
