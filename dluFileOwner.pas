@@ -50,7 +50,7 @@ begin
 end;
 
 function GetFileOwner(const AFileName: String; out ADomain, AOwner: String): Boolean;
-  var SecDesc      : TBytes; // Automatycznie zarządzany bufor
+  var SecDesc      : TBytes = nil; // Automatycznie zarządzany bufor
       SizeNeeded   : DWORD;
       OwnerSID     : PSID;
       OwnerDefault : BOOL;
