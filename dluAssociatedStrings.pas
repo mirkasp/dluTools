@@ -107,6 +107,7 @@ begin
     if not FIsSorted then EnsureSortedAndUnique();
 
     // Total size is FCount (items in FValues) + 1 (FDefaultValue)
+    Result := nil;
     SetLength( Result, FCount + 1 );
 
     // 1. Copy the Default Value to the first element
