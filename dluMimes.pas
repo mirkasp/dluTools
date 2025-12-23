@@ -64,7 +64,7 @@ type TMimeManager = class
       {%H-}constructor CreateManager();
 
       // Methods called during reg.Iterate procedure
-      function IsFileExtensionKey( const ABuffer: PChar ): boolean;
+      function IsFileExtensionKey( const ABuffer: string ): boolean;
       procedure MapExtensionToMime( ARegistry: TRegistry; const ASubKey, AKeyName: string );
       procedure MapMimeToExtension( ARegistry: TRegistry; const ASubKey, AKeyName: string );
    public
@@ -263,9 +263,9 @@ begin
 end;
 
 // Checks if the key in the registry is a file extension key (starts with a dot)
-function TMimeManager.IsFileExtensionKey( const ABuffer: PChar) : boolean;
+function TMimeManager.IsFileExtensionKey( const ABuffer: string) : boolean;
 begin
-   Result := Assigned(ABuffer) and (ABuffer[0] = '.');
+   Result := (Length(ABuffer)>0) and (ABuffer[1] = '.');
 end ;
 
 // Call-back procedure for searching extension keys (.ext)
