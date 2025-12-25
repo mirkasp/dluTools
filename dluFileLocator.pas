@@ -3,6 +3,7 @@ unit dluFileLocator;
 {$IFDEF FPC}
   {$mode objfpc}{$H+}
   {$modeswitch UNICODESTRINGS+}
+  {$inline on}
 {$ELSE}
   {$MESSAGE HINT 'Tested only for LAZARUS!'}
 {$ENDIF}
@@ -11,36 +12,45 @@ unit dluFileLocator;
 interface
 
 function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
-function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
+function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean; inline;
 
 implementation
 
 uses SysUtils
    ;
 
-function LookForFile( const AFileName: String; const APathEnv: boolean; const AFolders: array of String ): String;
-   var i : integer;
-       sb: TUnicodeStringBuilder;
+function LookForFile(const AFileName: String; const APathEnv: boolean; const AFolders: array of String): String;
+  var LFolder : string;
+      sb      : TUnicodeStringBuilder;
 begin
+   // Optymalizacja: szybkie wyjście
+   if AFileName = '' then Exit('');
+
    sb := TUnicodeStringBuilder.Create;
    try
-      for i := 0 to High(AFolders) do
-         sb.Append( IncludeTrailingPathDelimiter( AFolders[i] ) );
+      // Dodaj foldery z tablicy
+      for LFolder in AFolders do begin
+         if LFolder = '' then continue;
+         if sb.Length > 0 then sb.Append( String(PathSeparator) );
+         sb.Append( LFolder);
+      end;
 
-      if APathEnv then
-         sb.Append(GetEnvironmentVariable('PATH'));
+      // Dodaj PATH
+      if APathEnv then begin
+         if sb.Length > 0 then sb.Append( String(PathSeparator) );
+         sb.Append( GetEnvironmentVariable('PATH') );
+      end;
 
-      if not SearchForFile( sb.ToString, AFileName, Result ) then
-         Result := '';
+      Result := SysUtils.FileSearch( AFileName, sb.ToString );
 
    finally
       sb.Free;
    end;
 end;
 
-function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean;
+function SearchForFile( const ASearchPaths, AFileName: String; out VPath: String ): boolean; inline;
 begin
-   VPath := SysUtils.FileSearch( AFileName, ASearchPaths );
+   VPath  := SysUtils.FileSearch( AFileName, ASearchPaths );
    Result := VPath <> '';
 end;
 
