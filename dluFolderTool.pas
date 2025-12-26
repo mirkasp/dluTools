@@ -9,7 +9,8 @@ uses Windows
    //  , LCLIntf, LCLType
    //{$ENDIF}
    , dluFolderToolParam
-   , dluStringStack
+   //, dluStringStack
+   , Generics.Collections
    ;
 
 {$IFDEF FPC}
@@ -51,7 +52,7 @@ type
      fInfoBasic    : boolean;
      fGetFirstFunc : function (const fn: PChar; const fFindData: PWin32FindData): THandle of object;
      fSearchParam  : TuFolderToolParam;
-     fFolderStack  : TuStringStack;
+     fFolderStack  : specialize TStack<string>; //TuStringStack;
      //
      procedure Initialize();
      //
@@ -138,7 +139,7 @@ begin
       then fGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileW7
       else fGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileXP;
 
-   fFolderStack := TuStringStack.Create;
+   fFolderStack := specialize TStack<String>.Create; //TuStringStack.Create;
 
 end;
 
@@ -177,7 +178,8 @@ begin
    fFolderStack.Push( APath );
    h := Default( THandle );
 
-   while not fFolderStack.IsEmpty  do begin
+   //while not fFolderStack.Count.IsEmpty  do begin
+   while fFolderStack.Count > 0 do begin
        s := fFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
@@ -203,7 +205,7 @@ begin
    fFolderStack.Push( APath );
    h := Default( THandle );
 
-   while not fFolderStack.IsEmpty  do begin
+   while fFolderStack.Count > 0  do begin
        s := fFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
@@ -229,7 +231,7 @@ begin
    fFolderStack.Push( APath );
    h := Default( THandle );
 
-   while not (fFolderStack.IsEmpty or isBreak) do begin
+   while (fFolderStack.Count > 0) and not isBreak do begin
        s := fFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
@@ -256,7 +258,7 @@ begin
    fFolderStack.Push( AParams.Path );
    h := Default( THandle );
 
-   while not (fFolderStack.IsEmpty or isBreak) do begin
+   while (fFolderStack.Count > 0 ) and not isBreak do begin
        s := fFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
