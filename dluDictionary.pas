@@ -2,28 +2,25 @@ unit dluDictionary;
 
 {$IFDEF FPC}
    {$mode OBJFPC}{$H+}
-   //{$modeswitch UNICODESTRINGS+}
    {$WARN 4056 off : Conversion between ordinals and pointers is not portable}
 {$ELSE}
    {$MESSAGE HINT 'Tested only for LAZARUS!'}
 {$ENDIF}
 interface
 
-uses Classes;
+uses Classes
+   , Generics.Collections
+   ;
 
- { TuxDict }
-type
 
-  { IuDictionary }
-
-  IuDictionary = interface
-    procedure Add( const AKey: Cardinal; const AValue: AnsiString ); overload;
-    procedure Add( const AKey: Cardinal; const AValue: UnicodeString ); overload;
-    procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
+{ IuxDictionary }
+type IuxDictionary = interface
+    procedure Add( const AKey: Cardinal; const AValue: String ); overload;
+    procedure Add( const AKey: Cardinal; const AValue: String; Params: array of const ); overload;
     //
-    procedure Add( const AKeyStr: string; const AValue: AnsiString ); overload;
+    procedure Add( const AKeyStr: string; const AValue: String ); overload;
     //
-    procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
+    procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string; const ADispVal: boolean = false );
     function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
     function Value( const AKey: Cardinal ) : string; overload;
     function QuotedValue( const AKey: Cardinal ) : string;
@@ -33,12 +30,20 @@ type
 
 { TuxDictionary }
 
- TuxDictionary = class( TInterfacedObject, IuDictionary )
-   private
-     fKeys         : TList;
-     fValues       : TStrings;
-     fErrorCaption : string;
-     fRanges       : TStrings;
+type TuxDictionary = class( TInterfacedObject, IuxDictionary )
+   strict private
+     type TDictRange = record
+            KeyFrom : Cardinal;
+            KeyTo   : Cardinal;
+            Value   : string;
+            DispVal : boolean;
+     end;
+     var
+        FErrorCaption : string;
+        FDict         : specialize TDictionary<Cardinal,String>;
+        FRanges       : specialize TList<TDictRange>;
+     function TryLocateInRanges(const AKey: Cardinal; out AValue: string): boolean;
+     //
    public
      constructor Create( const xErrorCaption: string = '' );
      destructor Destroy; override;
@@ -49,13 +54,11 @@ type
      function GetValuesList( const ABitField: UInt64; const AMaxBit: Word = 0 ): TStrings;
      function GetMasksList( const AMask: Cardinal ): TStrings;
      //
-     procedure Add( const AKey: Cardinal; const AValue: AnsiString ); overload;
-     procedure Add( const AKey: Cardinal; const AValue: UnicodeString ); overload;
-     procedure Add( const AKey: Cardinal; const AValue: string; Params: array of const ); overload;
+     procedure Add( const AKey: Cardinal; const AValue: String ); overload;
+     procedure Add( const AKey: Cardinal; const AValue: String; Params: array of const ); overload;
+     procedure Add( const AKeyStr: string; const AValue: String ); overload;
      //
-     procedure Add( const AKeyStr: string; const AValue: AnsiString ); overload;
-     //
-     procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string );
+     procedure AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string; const ADispVal: boolean );
      function TryLocate( const AKey: Cardinal; out AValue: string ): boolean;
 end;
 
@@ -66,22 +69,18 @@ implementation
 
 uses SysUtils;
 
-type TDictRange = record
-   KeyFrom : Cardinal;
-   KeyTo   : Cardinal;
-end;
-
-PDictRange = ^TDictRange;
-
-
-function StrToCardinal( const AStr: AnsiString ): Cardinal;
-  var s : packed array[0..3] of AnsiChar;
+function StrToCardinal(const AStr: AnsiString): Cardinal;
+  var buf: array[0..3] of Byte = (0,0,0,0);
+      m: Integer;
 begin
-  s := Copy( AStr + #0#0#0#0, 1, 4 );
-  Result := BEToN( Cardinal( s ) );
+   m := Length(AStr);
+   if m > 4 then m := 4;
+   if m > 0 then
+      Move(AStr[1], buf[0], m);
+   Result := BEToN(PCardinal(@buf)^);
 end;
 
-function IsBit( const AValue: UInt64; const ABit: integer ): boolean;
+function IsBit( const AValue: UInt64; const ABit: integer ): boolean; inline;
 begin
    Result := ((AValue shr ABit) and $1) = $1;
 end;
@@ -91,22 +90,18 @@ end;
 constructor TuxDictionary.Create( const xErrorCaption: string) ;
 begin
    inherited Create;
-   fErrorCaption := xErrorCaption;
-   if fErrorCaption = '' then fErrorCaption := 'Unknown value for key "%x"';
-   fKeys   := TList.Create;
-   fValues := TStringList.Create;
-   fRanges := TStringList.Create;
+   FErrorCaption := xErrorCaption;
+   if FErrorCaption = '' then
+      FErrorCaption := 'Unknown value for key "%x"';
+
+   FDict   := specialize TDictionary<Cardinal,String>.Create;
+   FRanges := specialize TList<TDictRange>.Create;
 end;
 
 destructor TuxDictionary.Destroy;
-  var i: integer;
 begin
-   with fRanges do begin
-      for i:=0 to fRanges.Count-1 do Dispose( PDictRange( Objects[i] ) );
-      Free;
-   end;
-   fValues.Free;
-   fKeys.Free;
+   FRanges.Free;
+   FDict.Free;
    inherited Destroy;
 end;
 
@@ -118,98 +113,85 @@ begin
       else n := AMaxBit;
 
    Result := TStringList.Create;
-   for i := 0 to Pred( n ) do
-      if IsBit( ABitField, i ) then begin
-         {$IFDEF FPC}
-         Result.Add( AnsiString(Value( i )) );
-         {$ELSE}
+   for i := 0 to Pred( n ) do begin
+      if ABitField shr i = 0 then Break;  // Wszystkie kolejne bity są 0
+      if IsBit( ABitField, i ) then
          Result.Add( Value( i ) );
-         {$ENDIF}
-      end;
+   end ;
 
 end;
 
 function TuxDictionary.GetMasksList(const AMask: Cardinal): TStrings;
-  var i : integer;
-      k : Cardinal;
+  var pair: specialize TPair<Cardinal, string>;
 begin
-   Result := TStringList.Create;
-   for i:=0 to fKeys.Count-1 do begin
-      k := Cardinal( fKeys[i] );
-      if ((k and AMask) = k) then begin
-         {$IFDEF FPC}
-         Result.Add( AnsiString( Value( k )) );
-         {$ELSE}
-         Result.Add( Value( k ) );
-         {$ENDIF}
-      end;
-   end;
+  Result := TStringList.Create;
+  for pair in FDict do
+    if (pair.Key and AMask) = pair.Key then
+       Result.Add(pair.Value);
 end;
 
-procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: AnsiString );
+
+procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: String );
 begin
-   fKeys.Add( Pointer( AKey ) );
-   fValues.Add( AValue );
+   FDict.AddOrSetValue( AKey, AValue );
 end;
 
-procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: UnicodeString );
+
+procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: String; Params: array of const );
 begin
-   {$IFDEF FPC}
-   self.Add( AKey, AnsiString( UTF8Encode( AValue ) ) );
-   {$ELSE}
-   fKeys.Add( Pointer( AKey ) );
-   fValues.Add( AValue );
-   {$ENDIF}
-end;
-procedure TuxDictionary.Add( const AKey: Cardinal; const AValue: string; Params: array of const) ;
-begin
-   Add( AKey, Format( AValue, Params ) );
+   FDict.AddOrSetValue( AKey, Format(AValue, Params) );
 end;
 
-procedure TuxDictionary.Add(const AKeyStr: string; const AValue: AnsiString);
+procedure TuxDictionary.Add( const AKeyStr: string; const AValue: String );
 begin
-   fKeys.Add( Pointer( StrToCardinal( AKeyStr ) ) );
-   fValues.Add( AValue );
+   FDict.AddOrSetValue( StrToCardinal(AKeyStr), AValue );
 end;
 
-procedure TuxDictionary.AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string);
-  var pd : PDictRange;
+procedure TuxDictionary.AddRange( const AKeyFrom, AKeyTo: Cardinal; const AValue: string; const ADispVal: boolean );
+  var r : TDictRange;
 begin
-   New( pd );
-   pd^.KeyFrom := AKeyFrom;
-   pd^.KeyTo   := AKeyTo;
+   if AKeyFrom > AKeyTo then
+      raise Exception.Create('Invalid range: KeyFrom > KeyTo');
 
-   {$IFDEF FPC}
-   fRanges.AddObject( UTF8Encode( AValue ), TObject( pd ) );
-   {$ELSE}
-   fRanges.AddObject( AValue, TObject( pd ) );
-   {$ENDIF}
+   r.KeyFrom := AKeyFrom;
+   r.KeyTo   := AKeyTo;
+   r.Value   := AValue;
+   r.DispVal := ADispVal;
 
+   FRanges.Add( r );
 end;
 
-function TuxDictionary.TryLocate( const AKey: Cardinal; out AValue: string ) : boolean;
+function TuxDictionary.TryLocate(const AKey: Cardinal; out AValue: string): boolean;
+begin
+  if FDict.TryGetValue(AKey, AValue) then
+    Exit(True);
+
+  Result := TryLocateInRanges(AKey, AValue);
+end;
+
+function TuxDictionary.TryLocateInRanges( const AKey: Cardinal; out AValue: string) : boolean;
   var n : integer;
 begin
-  n := fKeys.IndexOf( Pointer( AKey ) );
-  Result := (n >= 0);
-  if Result then AValue := fValues[ n ]
-  else begin
-     n := fRanges.Count-1;
-     while n >= 0 do
-        with PDictRange( fRanges.Objects[n] )^ do
-           if (AKey >= KeyFrom) and (AKey <= KeyTo) then break
-           else Dec(n);
-     Result := (n >= 0);
-     if Result then AValue := fRanges[ n ];
-  end;
-end;
+   n := FRanges.Count-1;
+   while n >= 0 do
+      if (AKey >= FRanges[n].KeyFrom) and (AKey <= FRanges[n].KeyTo) then
+         break
+      else
+         Dec(n);
+   Result := (n >= 0);
+   if Result then begin
+      AValue := FRanges[ n ].Value;
+      if FRanges[n].DispVal then
+         AValue := 'Bit ' + IntToStr(AKey) + ': ' + AValue;
+   end ;
+end ;
 
 function TuxDictionary.Value( const AKey: Cardinal) : string;
 begin
    if not TryLocate( AKey, Result ) then
-     if (Pos( '%x', fErrorCaption ) > 0) or (Pos( '%d', fErrorCaption ) > 0)
-        then Result := Format( fErrorCaption, [AKey] )
-        else Result := fErrorCaption;
+     if (Pos( '%x', FErrorCaption ) > 0) or (Pos( '%d', FErrorCaption ) > 0)
+        then Result := Format( FErrorCaption, [AKey] )
+        else Result := FErrorCaption;
 
 end;
 
@@ -217,7 +199,5 @@ function TuxDictionary.QuotedValue( const AKey: Cardinal): string;
 begin
    Result := QuotedStr( Value( AKey ) );
 end;
-
-
 
 end.
