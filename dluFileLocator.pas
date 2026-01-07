@@ -46,7 +46,7 @@ begin
 
           if sb.Length > 0 then
              sb.Append(PathSeparator);
-          sb.Append(LFolder);
+          sb.Append( UTF8String( LFolder) );
       end;
 
       // Dodaj PATH jeśli wymagane
@@ -55,11 +55,11 @@ begin
          if PathEnv <> '' then begin
             if sb.Length > 0 then
                sb.Append(PathSeparator);
-            sb.Append(PathEnv);
+            sb.Append( UTF8String( PathEnv) );
          end;
       end;
 
-      Result := sb.ToString;
+      Result := String( sb.ToString );
    finally
      sb.Free;
    end;
@@ -111,30 +111,29 @@ procedure FoldersWithFile( const AFileName: string;
                            const Folders: array of AnsiString;
                            const Options: TFileLocatorOptions);
   var CheckedFolders: TStringList;
-      CurrentDir    : AnsiString;
-      FolderPath    : AnsiString;
-      FilePath      : AnsiString;
+      //CurrentDir    : AnsiString;
+      FilePath      : String;
       PathEnvFolders: TStringList;
       i             : Integer;
 
   // Funkcja pomocnicza: sprawdza i dodaje folder jeśli zawiera plik
-  procedure CheckAndAddFolder(const AFolder: AnsiString);
-    var NormalizedFolder: AnsiString;
+  procedure CheckAndAddFolder(const AFolder: String);
+    var NormalizedFolder: String;
   begin
      if AFolder = '' then Exit;
 
      NormalizedFolder := IncludeTrailingPathDelimiter( ExpandFileName(String(AFolder) ) );
 
      // Sprawdź czy folder był już sprawdzony (unikaj duplikatów)
-     if CheckedFolders.IndexOf(String(NormalizedFolder)) >= 0 then
+     if CheckedFolders.IndexOf(UTF8String(NormalizedFolder)) >= 0 then
         Exit;
 
-     CheckedFolders.Add(String(NormalizedFolder));
+     CheckedFolders.Add(UTF8String(NormalizedFolder));
 
      // Sprawdź czy plik istnieje
      FilePath := NormalizedFolder + AFileName;
      if FileExists(String(FilePath)) then
-        FindList.Add(String(NormalizedFolder));
+        FindList.Add(UTF8String(NormalizedFolder));
   end;
 
 begin
@@ -149,14 +148,12 @@ begin
       CheckedFolders.Duplicates := dupIgnore;
 
       // 1. Sprawdź bieżący katalog
-      if fl_current in Options then begin
-         CurrentDir := AnsiString(ExpandFileName('.'));
-         CheckAndAddFolder(CurrentDir);
-      end;
+      if fl_current in Options then
+         CheckAndAddFolder( String( ExpandFileName('.') ) );
 
       // 2. Sprawdź podane foldery
       for i := Low(Folders) to High(Folders) do
-         CheckAndAddFolder(Folders[i]);
+         CheckAndAddFolder( String(Folders[i]) );
 
       // 3. Sprawdź foldery z PATH
       if fl_syspath in Options then begin
@@ -164,10 +161,10 @@ begin
          try
             PathEnvFolders.Delimiter := PathSeparator;
             PathEnvFolders.StrictDelimiter := True;
-            PathEnvFolders.DelimitedText := GetEnvironmentVariable('PATH');
+            PathEnvFolders.DelimitedText := UTF8String( GetEnvironmentVariable('PATH') );
 
             for i := 0 to PathEnvFolders.Count - 1 do
-               CheckAndAddFolder(AnsiString(PathEnvFolders[i]));
+               CheckAndAddFolder( String(PathEnvFolders[i]) );
 
          finally
             PathEnvFolders.Free;
