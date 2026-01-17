@@ -164,9 +164,8 @@ begin
     // użyto pojedynczych ukośników wstecznych dla uciekania metaznaków.
     //Regex.Expression := '^(http|https)://([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(/[a-zA-Z0-9\-\._~:/?#[\]@!\$&''\(\)\*\+,;=]*)*$';
     //RegEx.Expression := '^(?:https?:\/\/|www\.)[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(/[a-zA-Z0-9\-\._~:/?#[\]%@!\$&''\(\)\*\+,;=]*)*$';
-    RegEx.Expression := '^(?:https?:\/\/|www\.)[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(?:\S*)?$';
-
-
+    //RegEx.Expression := '^(?:https?:\/\/|www\.)[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(?:\S*)?$';
+    RegEx.Expression := '^(?:https?:\/\/)?(?:www\.)?(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(?::\d{1,5})?(?:\/[^\s]*)?$';
 
     // Ustawienie ModifierI na True dla dopasowania niewrażliwego na wielkość liter.
     // Jest to ważne, ponieważ nazwy hostów w URL-ach są generalnie niewrażliwe na wielkość liter.
