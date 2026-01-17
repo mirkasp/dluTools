@@ -57,8 +57,8 @@ function GetFileOwner(const AFileName: String; out ADomain, AOwner: String): Boo
       PeUse        : SID_NAME_USE;
       CchName,
       CchDomain    : DWORD;
-      BufName,
-      BufDomain    : array of WideChar; // Bufory dla API Unicode
+      BufName      : array of WideChar = nil; // Bufor dla API Unicode
+      BufDomain    : array of WideChar = nil; // Bufor dla API Unicode
 begin
    Result     := False;
    ADomain    := '';
