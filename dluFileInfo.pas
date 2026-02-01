@@ -411,8 +411,63 @@ begin
          else Result := Result + '-';
 end;
 
-
+// Poniżej masz ultra‑szybką, minimalistyczną wersję, która czyta tylko pierwsze 1024 bajty pliku — dokładnie tyle, ile potrzeba, aby:
+// odczytać DOS header,
+// sprawdzić e_lfanew,
+// odczytać NT header,
+// ustalić bitowość PE.
+// To jest maksymalna optymalizacja I/O: zero streamów, zero mapowania, tylko jeden mały bufor.
+//-------------------------------------------------------------------------------------------------------------------------
+//
 function GetPEType(const APath: UnicodeString): TPEType;
+   const BufSize = 1024;
+   var F     : THandle;
+       ReadN : DWORD;
+       Buf   : array[0..BufSize-1] of Byte;
+       DOS   : PImageDosHeader;
+       NT    : PImageNtHeaders;
+begin
+   Result := pe_unknown;
+
+   F := CreateFileW(PWideChar(APath), GENERIC_READ, FILE_SHARE_READ,
+                    nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+   if F = INVALID_HANDLE_VALUE then
+      Exit;
+
+   try
+      if not ReadFile(F, @Buf[0], BufSize, @ReadN, nil) then
+         Exit;
+
+      if ReadN < SizeOf(TImageDosHeader) then
+         Exit;
+
+      DOS := @Buf[0];
+
+      if DOS^.e_magic <> IMAGE_DOS_SIGNATURE then
+         Exit;
+
+      if (DOS^.e_lfanew < 0) or
+         (DOS^.e_lfanew > BufSize - SizeOf(TImageNtHeaders)) then
+         Exit;
+
+      NT := PImageNtHeaders(@Buf[DOS^.e_lfanew]);
+
+      if NT^.Signature <> IMAGE_NT_SIGNATURE then
+         Exit;
+
+      case NT^.OptionalHeader.Magic of
+         IMAGE_NT_OPTIONAL_HDR32_MAGIC: Result := pe_32bit;
+         IMAGE_NT_OPTIONAL_HDR64_MAGIC: Result := pe_64bit;
+      end;
+
+   finally
+      CloseHandle(F);
+   end;
+end;
+
+
+
+function GetPETypeOld(const APath: UnicodeString): TPEType;
   var hFile,
       hFileMap : THandle;
       PMapView : Pointer;
