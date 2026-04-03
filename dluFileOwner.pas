@@ -8,126 +8,171 @@ unit dluFileOwner;
 interface
 
 /// <summary>
-/// Pobiera domenę i nazwę właściciela pliku.
-/// Zwraca True jeśli się powiodło.
+/// Cache management for file owner lookups.
+/// </summary>
+procedure EnableOwnerCache;
+procedure DisableOwnerCache;
+procedure ClearOwnerCache;
+
+/// <summary>
+/// Retrieves the domain and owner name of a specified file.
+/// Returns True if successful. Uses cache if previously enabled.
 /// </summary>
 function GetFileOwner(const AFileName: String; out ADomain, AOwner: String): Boolean;
 
 /// <summary>
-/// Zwraca sformatowany ciąg "DOMENA\Użytkownik" lub sam "Użytkownik".
-/// W przypadku błędu zwraca sformatowany komunikat błędu.
+/// Returns a formatted string "DOMAIN\User" or just "User".
+/// Overloaded for UnicodeString and AnsiString.
 /// </summary>
 function GetFileOwnerStr(const AFileName: UnicodeString): UnicodeString; overload;
 function GetFileOwnerStr(const AFileName: AnsiString): AnsiString; overload;
 
 implementation
 
-uses SysUtils
-   , Windows
-   ;
+uses
+  SysUtils,
+  Windows,
+  Generics.Collections;
 
+type
+  // Dictionary specialization for FPC (OBJFPC mode)
+  TCacheDictionary = specialize TDictionary<string, string>;
 
-// Jawnie importujemy wersję W (Wide) funkcji WinAPI
+var
+  GOwnerCache: TCacheDictionary = nil;
+
+// Required import to convert SID to string for cache keys
 function ConvertSidToStringSidW(Sid: PSID; out StringSid: LPWSTR): BOOL; stdcall; external 'advapi32.dll';
 
-//<summary>
-//Konwertuje SID na string
-//</summary>
-function SafeSIDToString(ASID: PSID): String;
-  var StringSid: LPWSTR; //PChar;
+procedure EnableOwnerCache;
 begin
-   Result := '';
-   if Assigned( ASID ) then begin
-      StringSid := nil;
-      if ConvertSidToStringSidW( ASID, StringSid ) then begin
-         try
-            Result := StringSid;
-         finally
-            LocalFree( {%H-}HLOCAL(StringSid) );
-         end;
+  if not Assigned(GOwnerCache) then
+    GOwnerCache := TCacheDictionary.Create;
+end;
+
+procedure DisableOwnerCache;
+begin
+  if Assigned(GOwnerCache) then
+    FreeAndNil(GOwnerCache);
+end;
+
+procedure ClearOwnerCache;
+begin
+  if Assigned(GOwnerCache) then
+    GOwnerCache.Clear;
+end;
+
+function SafeSIDToString(ASID: PSID): String;
+var
+  StringSid: LPWSTR;
+begin
+  Result := '';
+  if Assigned(ASID) then begin
+    if ConvertSidToStringSidW(ASID, StringSid) then begin
+      try
+        Result := StringSid;
+      finally
+        LocalFree(HLOCAL(StringSid));
       end;
-   end;
+    end;
+  end;
 end;
 
 function GetFileOwner(const AFileName: String; out ADomain, AOwner: String): Boolean;
-  var SecDesc      : TBytes = nil; // Automatycznie zarządzany bufor
-      SizeNeeded   : DWORD;
-      OwnerSID     : PSID;
-      OwnerDefault : BOOL;
-      PeUse        : SID_NAME_USE;
-      CchName,
-      CchDomain    : DWORD;
-      BufName      : array of WideChar = nil; // Bufor dla API Unicode
-      BufDomain    : array of WideChar = nil; // Bufor dla API Unicode
+var
+  SecDesc      : TBytes = nil;
+  SizeNeeded   : DWORD  = 0;
+  OwnerSID     : PSID   = nil;
+  OwnerDefault : BOOL;
+  PeUse        : SID_NAME_USE;
+  CchName,
+  CchDomain    : DWORD;
+  BufName      : array of WideChar = nil;
+  BufDomain    : array of WideChar = nil;
+  SIDKey       : string;
+  CachedVal    : string;
+  SepPos       : Integer;
 begin
-   Result     := False;
-   ADomain    := '';
-   AOwner     := '';
-   SizeNeeded := 0;
+  Result  := False;
+  ADomain := '';
+  AOwner  := '';
 
-   // 1. Pobierz rozmiar potrzebny na Security Descriptor
-   GetFileSecurityW( PWideChar( AFileName ), OWNER_SECURITY_INFORMATION, nil, 0, @SizeNeeded);
-  
-   // Jeśli błąd jest inny niż "za mały bufor" i rozmiar to 0, to coś poszło nie tak (np. brak pliku)
-   if (GetLastError() <> ERROR_INSUFFICIENT_BUFFER) and (SizeNeeded = 0) then Exit;
+  // 1. Retrieve Security Descriptor size and data
+  GetFileSecurityW(PWideChar(UnicodeString(AFileName)), OWNER_SECURITY_INFORMATION, nil, 0, @SizeNeeded);
+  if (GetLastError() <> ERROR_INSUFFICIENT_BUFFER) and (SizeNeeded = 0) then Exit;
 
-   // 2. Alokuj pamięć (SetLength robi to automatycznie i zwolni przy wyjściu z funkcji)
-   SetLength( SecDesc, SizeNeeded );
+  SetLength(SecDesc, SizeNeeded);
+  if not GetFileSecurityW(PWideChar(UnicodeString(AFileName)), OWNER_SECURITY_INFORMATION, @SecDesc[0], SizeNeeded, @SizeNeeded) then Exit;
 
-   // 3. Pobierz faktyczne dane
-   if not GetFileSecurityW( PWideChar( AFileName ), OWNER_SECURITY_INFORMATION, Windows.PSecurityDescriptor( SecDesc ), SizeNeeded, @SizeNeeded)
-      then Exit;
+  OwnerDefault := False;
+  if not GetSecurityDescriptorOwner(@SecDesc[0], OwnerSID, @OwnerDefault) or (OwnerSID = nil) then Exit;
 
-   // 4. Wyciągnij SID właściciela z deskryptora
-   OwnerSID     := nil;
-   OwnerDefault := False;
-   if not GetSecurityDescriptorOwner(PSecurityDescriptor(SecDesc), OwnerSID, @OwnerDefault)
-      then Exit;
+  // 2. Handle caching based on SID
+  SIDKey := SafeSIDToString(OwnerSID);
+  if Assigned(GOwnerCache) and GOwnerCache.TryGetValue(SIDKey, CachedVal) then begin
+    SepPos := Pos('\', CachedVal);
+    if SepPos > 0 then begin
+      ADomain := Copy(CachedVal, 1, SepPos - 1);
+      AOwner  := Copy(CachedVal, SepPos + 1, MaxInt);
+    end else
+      AOwner := CachedVal;
+    Exit(True);
+  end;
 
-   if OwnerSID = nil
-      then Exit;
+  // 3. Resolve SID to account name (LookupAccountSidW)
+  CchName   := 0;
+  CchDomain := 0;
+  PeUse     := SidTypeUser;
 
-   // 5. Pobierz nazwę użytkownika i domenę (LookupAccountSid)
-   CchName   := 0;
-   CchDomain := 0;
-   PeUse     := SidTypeUser;
+  LookupAccountSidW(nil, OwnerSID, nil, CchName, nil, CchDomain, PeUse);
+  if (CchName > 0) then begin
+    SetLength(BufName, CchName);
+    SetLength(BufDomain, CchDomain);
 
-   // Pierwsze wywołanie tylko po rozmiary - oczekujemy False i błędu INSUFFICIENT_BUFFER
-   if (not LookupAccountSidW(nil, OwnerSID, nil, CchName, nil, CchDomain, PeUse)) and (GetLastError() = ERROR_INSUFFICIENT_BUFFER) then begin
+    if LookupAccountSidW(nil, OwnerSID, PWideChar(BufName), CchName, PWideChar(BufDomain), CchDomain, PeUse) then begin
+      AOwner  := PWideChar(BufName);
+      ADomain := PWideChar(BufDomain);
+      Result  := True;
 
-      SetLength( BufName,   CchName   );
-      SetLength( BufDomain, CchDomain );
-
-      if LookupAccountSidW(nil, OwnerSID, PWideChar(BufName), CchName, PWideChar(BufDomain), CchDomain, PeUse) then begin
-         AOwner  := PWideChar( BufName   );
-         ADomain := PWideChar( BufDomain );
-         Result  := True;
+      // Add result to cache if enabled
+      if Assigned(GOwnerCache) then begin
+        if ADomain <> '' then
+          GOwnerCache.AddOrSetValue(SIDKey, ADomain + '\' + AOwner)
+        else
+          GOwnerCache.AddOrSetValue(SIDKey, AOwner);
       end;
-   end;
+    end;
+  end;
 
-   // Fallback: Jeśli nie udało się rozwiązać nazwy (np. brak dostępu do DC), zwróć SID
-   if not Result then begin
-      AOwner := SafeSidToString(OwnerSID);
-      Result := (AOwner <> '');
-   end;
-
+  // Fallback: If name resolution fails (e.g. orphan SID), return SID as string
+  if not Result then begin
+    AOwner := SIDKey;
+    Result := (AOwner <> '');
+  end;
 end;
 
 function GetFileOwnerStr(const AFileName: UnicodeString): UnicodeString;
-  var Domain, Owner: String;
+var
+  Domain, Owner: String;
 begin
-   if GetFileOwner(AFileName, Domain, Owner) then begin
-      if Domain <> ''
-         then Result := Domain + '\' + Owner // Standardowy format Windows
-         else Result := Owner;
-   end else begin
-      Result := UnicodeFormat('Error: %s', [SysErrorMessage(GetLastError)]);
+  if GetFileOwner(AFileName, Domain, Owner) then begin
+    if Domain <> '' then
+      Result := Domain + '\' + Owner
+    else
+      Result := Owner;
+  end else begin
+    Result := 'Error: ' + UTF8Decode(SysErrorMessage(GetLastError));
   end;
 end;
 
 function GetFileOwnerStr(const AFileName: AnsiString): AnsiString;
 begin
-   Result := UTF8Encode( GetFileOwnerStr( UTF8Decode( AFileName ) ) );
+  // Safe casting for FPC environment
+  Result := AnsiString(GetFileOwnerStr(UnicodeString(AFileName)));
 end;
+
+finalization
+  // Ensure cache cleanup on unit destruction
+  DisableOwnerCache;
 
 end.
