@@ -5,11 +5,7 @@ unit dluFolderToolParam;
 interface
 
 uses Windows, Classes
-{$IFDEF FPC}
-   , fgl
-{$ELSE}
    , Generics.Collections
-{$ENDIF}
    , dluSplitString
    ;
 
@@ -27,16 +23,16 @@ type
  TuFolderToolParam = class
    strict private
      type TIsMatchingFunc = function( const fn: PChar ): boolean of object;
-     type TFuncList       = {$IFDEF FPC}specialize TFPGList<TFilterMethod>{$ELSE}TList<TFilterMethod>{$ENDIF} ;
+     type TFuncList       = {$IFDEF FPC}specialize {$ENDIF}TList<TFilterMethod> ;
      var
-        fMtchFuncList      : TFuncList;
-        fMasterSem         : boolean;    // czy jest zdefiniowany jakikolwiek filtr ?
+        FMtchFuncList     : TFuncList;
+        FMasterSem        : boolean;    // czy jest zdefiniowany jakikolwiek filtr ?
         //
-        fFileNameMask      : string;
-        fMaskTabStr        : TUnicodeStringDynArray;
-        fIsMatchingFunc    : TIsMatchingFunc;
+        FFileNameMask     : string;
+        FMaskTabStr       : TUnicodeStringDynArray;
+        FIsMatchingFunc   : TIsMatchingFunc;
         // technical
-        fFreeonRelease     : boolean;
+        FFreeOnRelease    : boolean;
       procedure Initialize();
       procedure SetFileNameMask(const Value: string);
       function IsMatchingQ0( const fn: PChar ): boolean;
@@ -48,13 +44,13 @@ type
       class function IsWin7OrAbove: boolean;
       constructor Create( const AFileNameMask: string = '' );
       destructor Destroy; override;
-      property FreeOnRelease   : boolean read fFreeonRelease write fFreeOnRelease;
+      property FreeOnRelease   : boolean read FFreeOnRelease write FFreeOnRelease;
       procedure AddFilterFunc( AFunc: TFilterMethod );
       procedure ClearFilterFuncs();
       //
       function MatchingWith( const AFindData: TWin32FindData ): boolean;
       //
-      property FileNameMask : string  read fFileNameMask;
+      property FileNameMask : string  read FFileNameMask;
       property IsEmptyMask  : boolean read GetIsEmptyMask;
 end;
 
@@ -62,7 +58,6 @@ implementation
 
 uses SysUtils;
 
-//const PMSF_NORMAL   = $00000000;
 const PMSF_MULTIPLE = $00000001;
 
 function PathMatchSpec( pszFile, pszSpec: PWideChar ): BOOL; stdcall; external 'shlwapi.dll' name 'PathMatchSpecW';
@@ -85,69 +80,87 @@ end;
 
 procedure TuFolderToolParam.Initialize;
 begin
-   fMtchFuncList   := TFuncList.Create;
-   fFreeonRelease  := false;
-   fMasterSem      := false;
-   fFileNameMask   := '';
+   FMtchFuncList   := TFuncList.Create;
+   FFreeOnRelease  := false;
+   FMasterSem      := false;
+   FFileNameMask   := '';
 end;
 
 destructor TuFolderToolParam.Destroy;
 begin
-   fMtchFuncList.Free;
+   FMtchFuncList.Free;
    inherited;
 end;
 
 function TuFolderToolParam.GetIsEmptyMask: boolean;
 begin
-   Result := (fFileNameMask = '') or (fFileNameMask= '*') or (fFileNameMask='*.*')
+   Result := (FFileNameMask = '') or (FFileNameMask= '*') or (FFileNameMask='*.*')
 end;
 
-function TuFolderToolParam.MatchingWith( const AFindData: TWin32FindData): boolean;
-   var i : integer;
-begin
+//function TuFolderToolParam.MatchingWith( const AFindData: TWin32FindData): boolean;
+//   var i : integer;
+//begin
+//   if FMasterSem and Assigned( FIsMatchingFunc )
+//      then Result := FIsMatchingFunc( @AFindData.cFileName[0] )
+//      else Result := true;
+//   if not Result then Exit;
+//
+//   i := FMtchFuncList.Count - 1;
+//   while Result and (i >= 0 ) do begin
+//      Result := FMtchFuncList[i]( AFindData );
+//      Dec(i);
+//   end;
+//end;
 
-   if fMasterSem and Assigned( fIsMatchingFunc )
-      then Result := fIsMatchingFunc( Addr( AFindData.cFileName ) )
+function TuFolderToolParam.MatchingWith(const AFindData: TWin32FindData): boolean;
+   var fm: TFilterMethod;
+begin
+   // Dopasowanie maski
+   if FMasterSem and Assigned(FIsMatchingFunc)
+      then Result := FIsMatchingFunc(@AFindData.cFileName[0])
       else Result := true;
 
-   i := fMtchFuncList.Count - 1;
-   while Result and (i >= 0 ) do begin
-      Result := TFilterMethod( fMtchFuncList[i] )( AFindData );
-      Dec(i);
-   end;
+   if not Result then
+      exit;
 
+   // Wszystkie filtry muszą zwrócić TRUE
+   for fm in FMtchFuncList do
+      if not fm(AFindData) then
+         Exit(FALSE);
 end;
+
+
 
 procedure TuFolderToolParam.AddFilterFunc(AFunc: TFilterMethod);
 begin
-   fMtchFuncList.Add( AFunc );
+   FMtchFuncList.Add( AFunc );
 end;
 
 procedure TuFolderToolParam.ClearFilterFuncs;
 begin
-   fMtchFuncList.Clear;
+   FMtchFuncList.Clear;
 end;
 
 procedure TuFolderToolParam.SetFileNameMask(const Value: string);
 begin
-   fFileNameMask := Value;
+   FFileNameMask := Value;
    if GetIsEmptyMask()
-         then fMaskTabStr := nil
-         else fMaskTabStr := dluSplitString.SplitString( Value, ';' );
+         then FMaskTabStr := nil
+         else FMaskTabStr := dluSplitString.SplitString( Value, ';' );
 
-   fMasterSem := Assigned( fMaskTabStr );
+   FMasterSem := Length(FMaskTabStr) > 0;
 
-   if Length( fMaskTabStr ) <= 1 then begin
+   if Length( FMaskTabStr ) <= 1 then begin
 
-      fIsMatchingFunc := {$IFDEF FPC}@{$ENDIF}IsMatchingQ1;
+      FIsMatchingFunc := {$IFDEF FPC}@{$ENDIF}IsMatchingQ1;
 
    end else if IsWin7OrAbove() then begin
 
-      fIsMatchingFunc := {$IFDEF FPC}@{$ENDIF}IsMatchingQ2;
+      FIsMatchingFunc := {$IFDEF FPC}@{$ENDIF}IsMatchingQ2;
 
    end else begin
 
-      fIsMatchingFunc := {$IFDEF FPC}@{$ENDIF}IsMatchingQ0;
+      FIsMatchingFunc := {$IFDEF FPC}@{$ENDIF}IsMatchingQ0;
 
    end;
 
@@ -157,21 +170,21 @@ function TuFolderToolParam.IsMatchingQ0(const fn: PChar): boolean;
   var i : integer;
 begin
    Result := false;
-   i      := Low( fMaskTabStr );
-   while not Result and (i <= High(fMaskTabStr)) do
-      if PathMatchSpec( fn, PChar( fMaskTabStr[i] ) )
+   i      := Low( FMaskTabStr );
+   while not Result and (i <= High(FMaskTabStr)) do
+      if PathMatchSpec( fn, PChar( FMaskTabStr[i] ) )
          then Result := true
          else Inc(i);
 end;
 
 function TuFolderToolParam.IsMatchingQ1( const fn: PChar) : boolean;
 begin
-   Result := PathMatchSpec( fn, PChar( fFileNameMask ) );
+   Result := PathMatchSpec( fn, PChar( FFileNameMask ) );
 end;
 
 function TuFolderToolParam.IsMatchingQ2( const fn: PChar) : boolean;
 begin
-   Result := PathMatchSpecEx( fn, PChar( fFileNameMask ), PMSF_MULTIPLE ) = S_OK;
+   Result := PathMatchSpecEx( fn, PChar( FFileNameMask ), PMSF_MULTIPLE ) = S_OK;
 end;
 
 end.
