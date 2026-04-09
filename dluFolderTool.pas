@@ -5,11 +5,7 @@ unit dluFolderTool;
 interface
 
 uses Windows
-   //{$IFDEF FPC}
-   //  , LCLIntf, LCLType
-   //{$ENDIF}
    , dluFolderToolParam
-   //, dluStringStack
    , Generics.Collections
    ;
 
@@ -40,59 +36,54 @@ type TuScanParams = record
    Recursive      : boolean;
 end;
 
-type
-
 { TuFolderTool }
+type TuFolderTool = class
+   strict private
+      FLargeFetch   : boolean;
+      FInfoBasic    : boolean;
+      FGetFirstFunc : function (const fn: PChar; const fFindData: PWin32FindData): THandle of object;
+      FSearchParam  : TuFolderToolParam;
+      FFolderStack  : specialize TStack<string>;
+      //
+      procedure Initialize();
+      //
+      procedure SetInfoBasic(const Value: boolean);
+      procedure SetLargeFetch(const Value: boolean);
+      //
+      function GetFirstFileW7(const fn: PChar; const fFindData: PWin32FindData ): THandle;
+      function GetFirstFileXP(const fn: PChar; const fFindData: PWin32FindData ): THandle;
+      //
+      function ValidFolderName(const xFolder: string): boolean; overload; register; inline;
+   public
+      constructor Create( const xMask: string = '' ); overload;
+      constructor Create( const ASearchParam: TuFolderToolParam ); overload;
+      destructor Destroy; override;
+      //
+      // simple file access
+      function GetFirstFile( const xPath: string; var xHandle: THandle; const fFindData: PWin32FindData ): boolean;
+      function GetNextFile( const xHandle: THandle; const fFindData: PWin32FindData ): boolean;
+      //
+      // process action for folders in selected path only
+      procedure ProcessForFolders( const APath: string; AStrategy: IuStrategy ); overload;
+      procedure ProcessForFolders( const APath: string; FileAction: TuMatchedFileMethod ); overload;
+      {$IFDEF dlu_Anonymous}
+      procedure ProcessForFolders( const APath: string; FileAction: TuMatchedFileProc ); overload;
+      {$ENDIF}
+      //
+      // process action for files in selected path and subfolders [optional]
+      procedure ProcessForFiles( const APath: string; AStrategy: IuStrategy; const ARecursive: boolean = false); overload;
+      procedure ProcessForFiles( const APath: string; AMatchedFileMethod: TuMatchedFileMethod; const ARecursive: boolean = false ); overload;
+      procedure ProcessForFiles( const APath: string; AEachFileMethod: TuEachFileMethod; const ARecursive: boolean = false ); overload;
+      procedure ProcessForFiles( Const AParams: TuScanParams ); overload;
 
- TuFolderTool = class
-  strict private
-//     type TFileNameArray = array[0..MAX_PATH - 1] of WideChar;
-     var
-     fLargeFetch   : boolean;
-     fInfoBasic    : boolean;
-     fGetFirstFunc : function (const fn: PChar; const fFindData: PWin32FindData): THandle of object;
-     fSearchParam  : TuFolderToolParam;
-     fFolderStack  : specialize TStack<string>; //TuStringStack;
-     //
-     procedure Initialize();
-     //
-     procedure SetInfoBasic(const Value: boolean);
-     procedure SetLargeFetch(const Value: boolean);
-     //
-     function GetFirstFileW7(const fn: PChar; const fFindData: PWin32FindData ): THandle;
-     function GetFirstFileXP(const fn: PChar; const fFindData: PWin32FindData ): THandle;
-     //
-     function ValidFolderName(const xFolder: string): boolean; overload; register; inline;
-  public
-     constructor Create( const xMask: string = '' ); overload;
-     constructor Create( const ASearchParam: TuFolderToolParam ); overload;
-     destructor Destroy; override;
-     //
-     // simple file access
-     function GetFirstFile( const xPath: string; var xHandle: THandle; const fFindData: PWin32FindData ): boolean;
-     function GetNextFile( const xHandle: THandle; const fFindData: PWin32FindData ): boolean;
-     //
-     // process action for folders in selected path only
-     procedure ProcessForFolders( const APath: string; AStrategy: IuStrategy ); overload;
-     procedure ProcessForFolders( const APath: string; FileAction: TuMatchedFileMethod ); overload;
-     {$IFDEF dlu_Anonymous}
-     procedure ProcessForFolders( const APath: string; FileAction: TuMatchedFileProc ); overload;
-     {$ENDIF}
-     //
-     // process action for files in selected path and subfolders [optional]
-     procedure ProcessForFiles( const APath: string; AStrategy: IuStrategy; const ARecursive: boolean = false); overload;
-     procedure ProcessForFiles( const APath: string; AMatchedFileMethod: TuMatchedFileMethod; const ARecursive: boolean = false ); overload;
-     procedure ProcessForFiles( const APath: string; AEachFileMethod: TuEachFileMethod; const ARecursive: boolean = false ); overload;
-     procedure ProcessForFiles( Const AParams: TuScanParams ); overload;
-
-     {$IFDEF dlu_Anonymous}
-     procedure ProcessForFiles( const APath: string; AMatchedFileAction: TuMatchedFileProc; const ARecursive: boolean = false ); overload;
-     procedure ProcessForFiles( const APath: string; AEachFileAction: TuEachFileProc; const ARecursive: boolean = false ); overload;
-     {$ENDIF}
-     //
-     property LargeFetch : boolean read fLargeFetch write SetLargeFetch;
-     property InfoBasic  : boolean read fInfoBasic  write SetInfoBasic;
-     //
+      {$IFDEF dlu_Anonymous}
+      procedure ProcessForFiles( const APath: string; AMatchedFileAction: TuMatchedFileProc; const ARecursive: boolean = false ); overload;
+      procedure ProcessForFiles( const APath: string; AEachFileAction: TuEachFileProc; const ARecursive: boolean = false ); overload;
+      {$ENDIF}
+      //
+      property LargeFetch : boolean read FLargeFetch write SetLargeFetch;
+      property InfoBasic  : boolean read FInfoBasic  write SetInfoBasic;
+      //
 end;
 
 implementation
@@ -115,8 +106,8 @@ constructor TuFolderTool.Create(const xMask: string);
 begin
    inherited Create;
 
-   fSearchParam := TuFolderToolParam.Create( xMask );
-   fSearchParam.FreeOnRelease := true;
+   FSearchParam := TuFolderToolParam.Create( xMask );
+   FSearchParam.FreeOnRelease := true;
 
    Initialize();
 
@@ -126,29 +117,29 @@ constructor TuFolderTool.Create(const ASearchParam: TuFolderToolParam);
 begin
    inherited Create;
 
-   fSearchParam := ASearchParam;
+   FSearchParam := ASearchParam;
    Initialize();
 end;
 
 procedure TuFolderTool.Initialize;
 begin
-   fLargeFetch := true;
-   fInfoBasic  := true;
+   FLargeFetch := true;
+   FInfoBasic  := true;
 
-   if fSearchParam.IsWin7OrAbove
-      then fGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileW7
-      else fGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileXP;
+   if FSearchParam.IsWin7OrAbove
+      then FGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileW7
+      else FGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileXP;
 
-   fFolderStack := specialize TStack<String>.Create; //TuStringStack.Create;
+   FFolderStack := specialize TStack<String>.Create;
 
 end;
 
 destructor TuFolderTool.Destroy;
 begin
-   if Assigned( fSearchParam ) and fSearchParam.FreeOnRelease
-      then fSearchParam.Free;
-   if Assigned( fFolderStack )
-      then fFolderStack.Free;
+   if Assigned( FSearchParam ) and FSearchParam.FreeOnRelease
+      then FSearchParam.Free;
+   if Assigned( FFolderStack )
+      then FFolderStack.Free;
 
    inherited;
 end;
@@ -158,7 +149,7 @@ function TuFolderTool.GetFirstFile(const xPath: string; var xHandle: THandle; co
 begin
    saf := xpath + FT_ALL_FILES;
 
-   xHandle := fGetFirstFunc( PChar(saf), fFindData );
+   xHandle := FGetFirstFunc( PChar(saf), fFindData );
    Result  := xHandle <> INVALID_HANDLE_VALUE;
 end;
 
@@ -174,20 +165,20 @@ procedure TuFolderTool.ProcessForFiles(const APath: string; AStrategy: IuStrateg
       fd  : TWin32FindData;
       s   : string;
 begin
-   fFolderStack.Clear;
-   fFolderStack.Push( APath );
+   FFolderStack.Clear;
+   FFolderStack.Push( APath );
    h := Default( THandle );
 
-   //while not fFolderStack.Count.IsEmpty  do begin
-   while fFolderStack.Count > 0 do begin
-       s := fFolderStack.Pop;
+   //while not FFolderStack.Count.IsEmpty  do begin
+   while FFolderStack.Count > 0 do begin
+       s := FFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
-                if fSearchParam.MatchingWith( fd )  then AStrategy.FileProc( s, fd );
+                if FSearchParam.Matches( fd )  then AStrategy.FileProc( s, fd );
              end else
                 if ARecursive and {%H-}ValidFolderName( fd.cFileName )
-                  then fFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then FFolderStack.Push( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
        end;
@@ -201,19 +192,19 @@ procedure TuFolderTool.ProcessForFiles( const APath: string; AMatchedFileMethod:
       fd : TWin32FindData;
       s  : string;
 begin
-   fFolderStack.Clear;
-   fFolderStack.Push( APath );
+   FFolderStack.Clear;
+   FFolderStack.Push( APath );
    h := Default( THandle );
 
-   while fFolderStack.Count > 0  do begin
-       s := fFolderStack.Pop;
+   while FFolderStack.Count > 0  do begin
+       s := FFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
-                if fSearchParam.MatchingWith( fd )  then AMatchedFileMethod( s, fd );
+                if FSearchParam.Matches( fd )  then AMatchedFileMethod( s, fd );
              end else
                 if ARecursive and {%H-}ValidFolderName( fd.cFileName )
-                  then fFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then FFolderStack.Push( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
        end;
@@ -227,20 +218,20 @@ procedure TuFolderTool.ProcessForFiles( const APath: string; AEachFileMethod: Tu
       isBreak: boolean;
 begin
    isBreak := false;
-   fFolderStack.Clear;
-   fFolderStack.Push( APath );
+   FFolderStack.Clear;
+   FFolderStack.Push( APath );
    h := Default( THandle );
 
-   while (fFolderStack.Count > 0) and not isBreak do begin
-       s := fFolderStack.Pop;
+   while (FFolderStack.Count > 0) and not isBreak do begin
+       s := FFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
-                AEachFileMethod( fSearchParam.MatchingWith( fd ), s, fd, isBreak );
+                AEachFileMethod( FSearchParam.Matches( fd ), s, fd, isBreak );
 
              end else
                 if ARecursive and {%H-}ValidFolderName( fd.cFileName )
-                  then fFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then FFolderStack.Push( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd ) or isBreak;
           Windows.FindClose(h);
        end;
@@ -254,21 +245,21 @@ procedure TuFolderTool.ProcessForFiles(const AParams: TuScanParams);
       isBreak: boolean;
 begin
    isBreak := false;
-   fFolderStack.Clear;
-   fFolderStack.Push( AParams.Path );
+   FFolderStack.Clear;
+   FFolderStack.Push( AParams.Path );
    h := Default( THandle );
 
-   while (fFolderStack.Count > 0 ) and not isBreak do begin
-       s := fFolderStack.Pop;
+   while (FFolderStack.Count > 0 ) and not isBreak do begin
+       s := FFolderStack.Pop;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
 
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
-                AParams.EachFileMethod( fSearchParam.MatchingWith( fd ), s, fd, isBreak );
+                AParams.EachFileMethod( FSearchParam.Matches( fd ), s, fd, isBreak );
 
              end else
                 if AParams.Recursive and {%H-}ValidFolderName( fd.cFileName ) then begin
-                   fFolderStack.Push( s + fd.cFileName + PathDelim );
+                   FFolderStack.Push( s + fd.cFileName + PathDelim );
                    if Assigned( AParams.EachFolderMthd )
                       then AParams.EachFolderMthd( s, fd ) ;
                 end;
@@ -295,7 +286,7 @@ begin
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
-                if fSearchParam.MatchingWith( fd )  then AMatchedFileAction( s, fd );
+                if fSearchParam.Matches( fd )  then AMatchedFileAction( s, fd );
              end else
                 if ARecursive and ValidFolderName( fd.cFileName )
                   then fFolderStack.Push( s + fd.cFileName + PathDelim );
@@ -339,7 +330,7 @@ begin
    if GetFirstFile( APath, h, @fd ) then begin
       repeat
          if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and {%H-}ValidFolderName( fd.cFileName) then begin
-            if fSearchParam.MatchingWith( fd ) then AStrategy.FileProc( APath, fd );
+            if FSearchParam.Matches( fd ) then AStrategy.FileProc( APath, fd );
          end;
       until not GetNextFile( h, @fd );
       Windows.FindClose(h);
@@ -355,7 +346,7 @@ begin
    if GetFirstFile( APath, h, @fd ) then begin
       repeat
          if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and {%H-}ValidFolderName( fd.cFileName) then begin
-            if fSearchParam.MatchingWith( fd )  then FileAction( APath, fd );
+            if FSearchParam.Matches( fd )  then FileAction( APath, fd );
          end;
       until not GetNextFile( h, @fd );
       Windows.FindClose(h);
@@ -370,7 +361,7 @@ begin
    if GetFirstFile( APath, h, @fd ) then begin
       repeat
          if ((fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) <> 0) and ValidFolderName( fd.cFileName) then begin
-            if fSearchParam.MatchingWith( fd )  then FileAction( APath, fd );
+            if fSearchParam.Matches( fd )  then FileAction( APath, fd );
          end;
       until not GetNextFile( h, @fd );
       Windows.FindClose(h);
@@ -389,11 +380,11 @@ function TuFolderTool.GetFirstFileW7(const fn: PChar; const fFindData: PWin32Fin
   const ExLargeFlags : array[boolean] of Cardinal = ( 0, FIND_FIRST_EX_LARGE_FETCH );
 begin
    Result := FindFirstFileExW( fn,
-                              _FINDEX_INFO_LEVELS( ExInfoFlags[ fInfoBasic ] ),
+                              _FINDEX_INFO_LEVELS( ExInfoFlags[ FInfoBasic ] ),
                               fFindData,
                               FindExSearchNameMatch,
                               nil,
-                              ExLargeFlags[ fLargeFetch ]
+                              ExLargeFlags[ FLargeFetch ]
                             );
 end;
 
@@ -404,12 +395,12 @@ end;
 
 procedure TuFolderTool.SetInfoBasic(const Value: boolean);
 begin
-   fInfoBasic := Value;
+   FInfoBasic := Value;
 end;
 
 procedure TuFolderTool.SetLargeFetch(const Value: boolean);
 begin
-   fLargeFetch := Value;
+   FLargeFetch := Value;
 end;
 
 function TuFolderTool.ValidFolderName(const xFolder: string): boolean; register;
@@ -454,9 +445,5 @@ begin
 end;
 {$WARN SYMBOL_PLATFORM ON}
 {$ENDIF}
-
-
-
-
 
 end.
