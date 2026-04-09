@@ -1,36 +1,36 @@
 unit dluGenQueue;
 
-{$mode Delphi}{$H+}
+{$mode ObjFpc}{$H+}
 
 interface
 
-type
-
 { TuQueue }
-
- TuQueue<_T> = class
+type generic TuQueue<_T> = class
    strict private
-     type PQueueItem = ^TQueueItem;
-          TQueueItem = record
-              Data : _T;
-              Next : PQueueItem;
-          end;
-     var  fHead : PQueueItem;
-          fTail : PQueueItem;
-          fTemp : PQUeueItem;
+      type PQueueItem = ^TQueueItem;
+           TQueueItem = record
+                 Data : _T;
+                 Next : PQueueItem;
+              end;
+      var  FHead      : PQueueItem;
+           FTail      : PQueueItem;
+           FCursor    : PQueueItem;     // kursor iteracji GetFirst/GetNext
+           {$IFDEF DEBUG}
+           FIterating : boolean;        // guard: wykrywa porzuconą iterację
+           {$ENDIF}
    public
-     constructor Create;
-     destructor Destroy; override;
-     procedure Clear;  //inline;
-     procedure Push( const AElem: _T ); inline;
-     function Pop: _T; //inline;
-     function IsEmpty: boolean; //inline;
-     function TryPop( var AElem: _T ): boolean;
-     function TryTest( var AElem: _T ): boolean;
-     //
-     function GetFirst( var AElem: _T ): boolean;
-     function GetNext( var AElem: _T ): boolean;
-     //
+      constructor Create;
+      destructor  Destroy; override;
+      procedure   Clear;
+      procedure   Push(const AElem: _T);
+      function    Pop: _T;
+      function    IsEmpty: boolean;
+      function    TryPop(out AElem: _T): boolean;
+      function    TryTest(out AElem: _T): boolean;
+      //
+      function    GetFirst(out AElem: _T): boolean;
+      function    GetNext(out AElem: _T): boolean;
+      //
 end;
 
 implementation
@@ -39,90 +39,98 @@ uses SysUtils;
 
 { TuQueue }
 
-constructor TuQueue<_T>.Create;
+constructor TuQueue.Create;
 begin
    inherited Create;
-   fHead := nil;
-   fTail := nil;
+   FHead := nil;
+   FTail := nil;
 end;
 
-destructor TuQueue<_T>.Destroy;
+destructor TuQueue.Destroy;
 begin
-   self.Clear;
+   Clear;
    inherited Destroy;
 end;
 
-procedure TuQueue<_T>.Clear;
+procedure TuQueue.Clear;
 begin
-   while not IsEmpty() do begin
-      Pop();
-   end;
-   fHead := nil;
+   while not IsEmpty do Pop;
+   {$IFDEF DEBUG}
+   // Przerwana iteracja przez Clear jest sytuacją legalną — resetujemy guard
+   FIterating := False;
+   {$ENDIF}
 end;
 
-procedure TuQueue<_T>.Push(const AElem: _T);
-  var p : PQueueItem;
+procedure TuQueue.Push(const AElem: _T);
+   var p : PQueueItem;
 begin
-   if self.IsEmpty() then begin
-      New( fHead );
-      fHead^.Data := AElem;
-      fHead^.Next := nil;
-      fTail       := fHead;
-   end else begin
-      New( p );
-      p^.Data     := AElem;
-      fTail^.Next := p;
-      p^.Next     := nil;
-      fTail       := p;
-   end;
+   New(p);
+   p^.Data := AElem;
+   p^.Next := nil;
+   if FTail <> nil then
+      FTail^.Next := p
+   else
+      FHead := p;  // kolejka była pusta — ustaw głowę
+   FTail := p;
 end;
 
-function TuQueue<_T>.Pop: _T;
-  var p : PQueueItem;
+function TuQueue.Pop: _T;
+   var p : PQueueItem;
 begin
-   if not self.IsEmpty() then begin
-      p      := fHead;
-      fHead  := fHead^.Next;
-      if fHead = nil then fTail := nil;
-      Result := p^.Data;
-      Dispose( p );
-   end else
-      raise Exception.CreateFmt( 'Error in "%s" class procedure "Pop"', [ self.ClassName ] );
+   if IsEmpty then
+      raise Exception.CreateFmt('%s.Pop: kolejka jest pusta', [ClassName]);
+   p     := FHead;
+   FHead := FHead^.Next;
+   if FHead = nil then FTail := nil;
+   Result := p^.Data;
+   Dispose(p);
 end;
 
-function TuQueue<_T>.IsEmpty: boolean;
+function TuQueue.IsEmpty: boolean;
 begin
-   Result := fTail = nil;
-   if Result and (fHead <> nil) then
-      raise Exception.CreateFmt( 'Error in "%s" class procedure "IsEmpty"', [ self.ClassName ] );
+   Result := (FTail = nil);
+   {$IFDEF DEBUG}
+   if Result and (FHead <> nil) then
+      raise Exception.CreateFmt('%s.IsEmpty: niespójny stan (FHead<>nil, FTail=nil)', [ClassName]);
+   {$ENDIF}
 end;
 
-function TuQueue<_T>.TryPop(var AElem: _T): boolean;
+function TuQueue.TryPop(out AElem: _T): boolean;
 begin
-   Result := not self.IsEmpty;
-   if Result then AElem := self.Pop();
+   Result := not IsEmpty;
+   if Result then AElem := Pop;
 end;
 
-function TuQueue<_T>.TryTest(var AElem: _T): boolean;
+function TuQueue.TryTest(out AElem: _T): boolean;
 begin
-   Result := not self.IsEmpty;
-   if Result then AElem := fHead^.Data;
+   Result := not IsEmpty;
+   if Result then AElem := FHead^.Data;
 end;
 
-function TuQueue<_T>.GetFirst(var AElem: _T): boolean;
+function TuQueue.GetFirst(out AElem: _T): boolean;
 begin
-   fTemp := fHead;
-   Result := GetNext( AElem );
+   {$IFDEF DEBUG}
+   // Wywołanie GetFirst przy aktywnej iteracji oznacza porzucenie poprzedniej
+   // (nie doszło do Result=False w GetNext) — wykrywamy jako błąd użycia
+   if FIterating then
+      raise Exception.CreateFmt('%s.GetFirst: poprzednia iteracja nie została zakończona', [ClassName]);
+   FIterating := True;
+   {$ENDIF}
+   FCursor  := FHead;
+   Result := GetNext(AElem);
 end;
 
-function TuQueue<_T>.GetNext(var AElem: _T): boolean;
+function TuQueue.GetNext(out AElem: _T): boolean;
 begin
-   Result := (fTemp <> nil);
+   Result := (FCursor <> nil);
    if Result then begin
-      AElem := fTemp^.Data;
-      fTemp := fTemp^.Next;
+      AElem := FCursor^.Data;
+      FCursor := FCursor^.Next;
+   end else begin
+      {$IFDEF DEBUG}
+      FIterating := False;  // iteracja zakończona poprawnie
+      {$ENDIF}
    end;
 end;
 
 end.
-
