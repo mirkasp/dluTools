@@ -76,16 +76,15 @@ function AttrWin32( const x: Cardinal ): string;
 
 implementation
 
-uses
-  ShellApi, Windows
-  , JwaWindows
+uses ShellApi
+   , Windows
+   , JwaWindows
 {$IFDEF FPC}
-  , LCLIntf
-  , LCLType
+   , LCLIntf
+   , LCLType
 {$ENDIF}
-  , SysUtils
-  //, dluDictionary
-  ;
+   , SysUtils
+   ;
 
 {$IFNDEF FPC}
 // from lazarus file 'defines.inc'
