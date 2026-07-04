@@ -39,11 +39,13 @@ end;
 { TuFolderTool }
 type TuFolderTool = class
    strict private
-      FLargeFetch   : boolean;
-      FInfoBasic    : boolean;
-      FGetFirstFunc : function (const fn: PChar; const fFindData: PWin32FindData): THandle of object;
-      FSearchParam  : TuFolderToolParam;
-      FFolderStack  : specialize TStack<string>;
+      type TFoldersQueue = specialize TQueue<string>;
+      var
+         FLargeFetch   : boolean;
+         FInfoBasic    : boolean;
+         FGetFirstFunc : function (const fn: PChar; const fFindData: PWin32FindData): THandle of object;
+         FSearchParam  : TuFolderToolParam;
+         FFolderQueue  : TFoldersQueue;
       //
       procedure Initialize();
       //
@@ -130,7 +132,8 @@ begin
       then FGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileW7
       else FGetFirstFunc := {$IFDEF FPC}@{$ENDIF}GetFirstFileXP;
 
-   FFolderStack := specialize TStack<String>.Create;
+   //FFolderQueue := specialize TStack<String>.Create;
+   FFolderQueue := TFoldersQueue.Create;
 
 end;
 
@@ -138,8 +141,8 @@ destructor TuFolderTool.Destroy;
 begin
    if Assigned( FSearchParam ) and FSearchParam.FreeOnRelease
       then FSearchParam.Free;
-   if Assigned( FFolderStack )
-      then FFolderStack.Free;
+   if Assigned( FFolderQueue )
+      then FFolderQueue.Free;
 
    inherited;
 end;
@@ -165,20 +168,20 @@ procedure TuFolderTool.ProcessForFiles(const APath: string; AStrategy: IuStrateg
       fd  : TWin32FindData;
       s   : string;
 begin
-   FFolderStack.Clear;
-   FFolderStack.Push( APath );
+   FFolderQueue.Clear;
+   FFolderQueue.Enqueue( APath );
    h := Default( THandle );
 
-   //while not FFolderStack.Count.IsEmpty  do begin
-   while FFolderStack.Count > 0 do begin
-       s := FFolderStack.Pop;
+   //while not FFolderQueue.Count.IsEmpty  do begin
+   while FFolderQueue.Count > 0 do begin
+       s := FFolderQueue.Extract;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
                 if FSearchParam.Matches( fd )  then AStrategy.FileProc( s, fd );
              end else
                 if ARecursive and {%H-}ValidFolderName( fd.cFileName )
-                  then FFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then FFolderQueue.Enqueue( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
        end;
@@ -192,19 +195,19 @@ procedure TuFolderTool.ProcessForFiles( const APath: string; AMatchedFileMethod:
       fd : TWin32FindData;
       s  : string;
 begin
-   FFolderStack.Clear;
-   FFolderStack.Push( APath );
+   FFolderQueue.Clear;
+   FFolderQueue.Enqueue( APath );
    h := Default( THandle );
 
-   while FFolderStack.Count > 0  do begin
-       s := FFolderStack.Pop;
+   while FFolderQueue.Count > 0  do begin
+       s := FFolderQueue.Extract;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
                 if FSearchParam.Matches( fd )  then AMatchedFileMethod( s, fd );
              end else
                 if ARecursive and {%H-}ValidFolderName( fd.cFileName )
-                  then FFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then FFolderQueue.Enqueue( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
        end;
@@ -218,12 +221,12 @@ procedure TuFolderTool.ProcessForFiles( const APath: string; AEachFileMethod: Tu
       isBreak: boolean;
 begin
    isBreak := false;
-   FFolderStack.Clear;
-   FFolderStack.Push( APath );
+   FFolderQueue.Clear;
+   FFolderQueue.Enqueue( APath );
    h := Default( THandle );
 
-   while (FFolderStack.Count > 0) and not isBreak do begin
-       s := FFolderStack.Pop;
+   while (FFolderQueue.Count > 0) and not isBreak do begin
+       s := FFolderQueue.Extract;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
@@ -231,7 +234,7 @@ begin
 
              end else
                 if ARecursive and {%H-}ValidFolderName( fd.cFileName )
-                  then FFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then FFolderQueue.Enqueue( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd ) or isBreak;
           Windows.FindClose(h);
        end;
@@ -245,12 +248,12 @@ procedure TuFolderTool.ProcessForFiles(const AParams: TuScanParams);
       isBreak: boolean;
 begin
    isBreak := false;
-   FFolderStack.Clear;
-   FFolderStack.Push( AParams.Path );
+   FFolderQueue.Clear;
+   FFolderQueue.Enqueue( AParams.Path );
    h := Default( THandle );
 
-   while (FFolderStack.Count > 0 ) and not isBreak do begin
-       s := FFolderStack.Pop;
+   while (FFolderQueue.Count > 0 ) and not isBreak do begin
+       s := FFolderQueue.Extract;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
 
@@ -259,7 +262,7 @@ begin
 
              end else
                 if AParams.Recursive and {%H-}ValidFolderName( fd.cFileName ) then begin
-                   FFolderStack.Push( s + fd.cFileName + PathDelim );
+                   FFolderQueue.Enqueue( s + fd.cFileName + PathDelim );
                    if Assigned( AParams.EachFolderMthd )
                       then AParams.EachFolderMthd( s, fd ) ;
                 end;
@@ -279,17 +282,17 @@ procedure TuFolderTool.ProcessForFiles( const APath: string; AMatchedFileAction:
       s  : string;
 begin
    fFolderStack.Clear;
-   fFolderStack.Push( APath );
+   fFolderStack.Enqueue( APath );
 
    while not fFolderStack.IsEmpty  do begin
-       s := fFolderStack.Pop;
+       s := fFolderStack.Extract;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
                 if fSearchParam.Matches( fd )  then AMatchedFileAction( s, fd );
              end else
                 if ARecursive and ValidFolderName( fd.cFileName )
-                  then fFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then fFolderStack.Enqueue( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd );
           Windows.FindClose(h);
        end;
@@ -304,17 +307,17 @@ procedure TuFolderTool.ProcessForFiles( const APath: string; AEachFileAction: Tu
 begin
    isBreak := false;
    fFolderStack.Clear;
-   fFolderStack.Push( APath );
+   fFolderStack.Enqueue( APath );
 
    while not (fFolderStack.IsEmpty or isBreak) do begin
-       s := fFolderStack.Pop;
+       s := fFolderStack.Extract;
        if GetFirstFile( s, h, @fd ) then begin
           repeat
              if (fd.dwFileAttributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then begin
                 AEachFileAction( fSearchParam.MatchingWith( fd ), s, fd, isBreak );
              end else
                 if ARecursive and ValidFolderName( fd.cFileName )
-                  then fFolderStack.Push( s + fd.cFileName + PathDelim );
+                  then fFolderStack.Enqueue( s + fd.cFileName + PathDelim );
           until not GetNextFile( h, @fd ) or isBreak;
           Windows.FindClose(h);
        end;
