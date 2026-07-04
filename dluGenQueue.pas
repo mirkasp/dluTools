@@ -15,9 +15,10 @@ type generic TuQueue<_T> = class
       var  FHead      : PQueueItem;
            FTail      : PQueueItem;
            FCursor    : PQueueItem;     // kursor iteracji GetFirst/GetNext
-           {$IFDEF DEBUG}
+           {$IFOPT D+}
            FIterating : boolean;        // guard: wykrywa porzuconą iterację
            {$ENDIF}
+      procedure DebugLegalCheck(const AMethod: string);
    public
       constructor Create;
       destructor  Destroy; override;
@@ -39,11 +40,23 @@ uses SysUtils;
 
 { TuQueue }
 
+procedure TuQueue.DebugLegalCheck(const AMethod: string);
+begin
+   {$IFOPT D+}
+   if FIterating then
+      raise Exception.CreateFmt( '%s.%s: nielegalna operacja wewnątrz bloku GetFirst/GetNext', [ClassName, AMethod]);
+   {$ENDIF}
+end;
+
 constructor TuQueue.Create;
 begin
    inherited Create;
-   FHead := nil;
-   FTail := nil;
+   FHead   := nil;
+   FTail   := nil;
+   FCursor := nil;
+   {$IFOPT D+}
+   FIterating := False;
+   {$ENDIF}
 end;
 
 destructor TuQueue.Destroy;
@@ -53,10 +66,17 @@ begin
 end;
 
 procedure TuQueue.Clear;
+  var p: PQueueItem;
 begin
-   while not IsEmpty do Pop;
-   {$IFDEF DEBUG}
-   // Przerwana iteracja przez Clear jest sytuacją legalną — resetujemy guard
+   DebugLegalCheck('Clear');
+   while FHead <> nil do begin
+      p := FHead;
+      FHead := p^.Next;
+      Dispose(p);
+   end;
+   FTail   := nil;
+   FCursor := nil;
+   {$IFOPT D+}
    FIterating := False;
    {$ENDIF}
 end;
@@ -64,6 +84,8 @@ end;
 procedure TuQueue.Push(const AElem: _T);
    var p : PQueueItem;
 begin
+   DebugLegalCheck('Push');
+
    New(p);
    p^.Data := AElem;
    p^.Next := nil;
@@ -77,8 +99,10 @@ end;
 function TuQueue.Pop: _T;
    var p : PQueueItem;
 begin
+   DebugLegalCheck('Pop');
    if IsEmpty then
       raise Exception.CreateFmt('%s.Pop: kolejka jest pusta', [ClassName]);
+
    p     := FHead;
    FHead := FHead^.Next;
    if FHead = nil then FTail := nil;
@@ -88,10 +112,10 @@ end;
 
 function TuQueue.IsEmpty: boolean;
 begin
-   Result := (FTail = nil);
-   {$IFDEF DEBUG}
-   if Result and (FHead <> nil) then
-      raise Exception.CreateFmt('%s.IsEmpty: niespójny stan (FHead<>nil, FTail=nil)', [ClassName]);
+   Result := (FHead = nil);
+   {$IFOPT D+}
+   if Result <> (FTail = nil) then
+      raise Exception.CreateFmt('%s.IsEmpty: niespójny stan kolejki', [ClassName]);
    {$ENDIF}
 end;
 
@@ -109,15 +133,14 @@ end;
 
 function TuQueue.GetFirst(out AElem: _T): boolean;
 begin
-   {$IFDEF DEBUG}
    // Wywołanie GetFirst przy aktywnej iteracji oznacza porzucenie poprzedniej
-   // (nie doszło do Result=False w GetNext) — wykrywamy jako błąd użycia
+   {$IFOPT D+}
    if FIterating then
-      raise Exception.CreateFmt('%s.GetFirst: poprzednia iteracja nie została zakończona', [ClassName]);
-   FIterating := True;
+      raise Exception.CreateFmt( '%s.GetFirst: poprzednia iteracja nie została zakończona', [ClassName]);
+   FIterating := true;
    {$ENDIF}
-   FCursor  := FHead;
-   Result := GetNext(AElem);
+   FCursor    := FHead;
+   Result     := GetNext(AElem);
 end;
 
 function TuQueue.GetNext(out AElem: _T): boolean;
@@ -127,7 +150,7 @@ begin
       AElem := FCursor^.Data;
       FCursor := FCursor^.Next;
    end else begin
-      {$IFDEF DEBUG}
+      {$IFOPT D+}
       FIterating := False;  // iteracja zakończona poprawnie
       {$ENDIF}
    end;
