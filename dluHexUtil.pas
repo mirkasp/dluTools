@@ -28,28 +28,28 @@ uses SysUtils;
 // Converts a byte buffer to a HEX string (from first byte to last byte).
 // ASeparator is inserted between hex pairs (empty = no separator).
 // AMaxBytes > 0 limits the printed byte count and appends ASeparator + '...' when truncated.
-function BytesToHex( const AData: PByte; const ACount: Integer; const ASeparator: string = ''; AMaxBytes: Integer = 0 ): string; overload;
-function BytesToHex( const AData: array of Byte; const ASeparator: string = ''; const AMaxBytes: Integer = 0 ): string; overload;
+function BytesToHex( const AData: PByte; const ACount: SizeInt; const ASeparator: string = ''; AMaxBytes: SizeInt = 0 ): string; overload; inline;
+function BytesToHex( const AData: array of Byte; const ASeparator: string = ''; const AMaxBytes: SizeInt = 0 ): string; overload;
 
 // Reverses BytesToHex: converts a HEX string to a byte array.
 // ASeparator must match the one used during encoding.
 // Returns False and sets ABytes to nil on invalid HEX format without throwing exceptions.
-function TryHexToBytes( const AHex: string; out ABytes: TBytes; const ASeparator: string = '' ): Boolean;
+function TryHexToBytes( const AHex: string; out ABytes: TBytes; const ASeparator: string = '' ): Boolean; inline;
 
 // Same as TryHexToBytes, but raises EConvertError on invalid format instead of returning False.
-function HexToBytes( const AHex: string; const ASeparator: string = '' ): TBytes;
+function HexToBytes( const AHex: string; const ASeparator: string = '' ): TBytes; inline;
 
 // --- Little-Endian (Reversed Order) Functions ---
 
 // Converts a byte buffer to a HEX string in Little-Endian byte order (from last byte to first byte).
-function BytesToHexLE( const AData: PByte; const ACount: Integer; const ASeparator: string = ''; AMaxBytes: Integer = 0 ): string; overload;
-function BytesToHexLE( const AData: array of Byte; const ASeparator: string = ''; const AMaxBytes: Integer = 0 ): string; overload;
+function BytesToHexLE( const AData: PByte; const ACount: SizeInt; const ASeparator: string = ''; AMaxBytes: SizeInt = 0 ): string; overload; inline;
+function BytesToHexLE( const AData: array of Byte; const ASeparator: string = ''; const AMaxBytes: SizeInt = 0 ): string; overload;
 
 // Reverses BytesToHexLE: converts a HEX string to a byte array filled from last index to first index.
-function TryHexToBytesLE( const AHex: string; out ABytes: TBytes; const ASeparator: string = '' ): Boolean;
+function TryHexToBytesLE( const AHex: string; out ABytes: TBytes; const ASeparator: string = '' ): Boolean; inline;
 
 // Same as TryHexToBytesLE, but raises EConvertError on invalid format.
-function HexToBytesLE( const AHex: string; const ASeparator: string = '' ): TBytes;
+function HexToBytesLE( const AHex: string; const ASeparator: string = '' ): TBytes; inline;
 
 implementation
 
@@ -86,172 +86,190 @@ var
   HexNibbleTable : array[Byte] of ShortInt;
 
 { Core internal function for encoding byte buffers to HEX }
-function BytesToHexInternal( const AData: PByte; const ACount: Integer; const ASeparator: string; AMaxBytes: Integer; AEndianness: TEndianness ): string;
-  var i, LCount, LSepLen, LTotalLen, LSrcInc : Integer;
+function BytesToHexInternal( const AData: PByte; const ACount: SizeInt; const ASeparator: string; AMaxBytes: SizeInt; AEndianness: TEndianness ): string;
+  var i, LCount, LSepLen, LTotalLen, LSrcInc : SizeInt;
       LHasMore                               : Boolean;
       LDst                                   : PChar;
       LSrc                                   : PByte;
+
+   procedure WriteHexByte; inline;
+   begin
+      PHexPair( LDst )^ := HexPairTable[ LSrc^ ];
+      Inc( LDst, 2 );
+      Inc( LSrc, LSrcInc );
+   end;
 begin
-  if ( ACount <= 0 ) or ( AData = nil ) then Exit( '' );
-  if AMaxBytes < 0 then AMaxBytes := 0;
+   if ( ACount <= 0 ) or ( AData = nil ) then Exit( '' );
+   if AMaxBytes < 0 then AMaxBytes := 0;
 
-  LCount   := ACount;
-  LHasMore := ( AMaxBytes > 0 ) and ( ACount > AMaxBytes );
-  if LHasMore then
-    LCount := AMaxBytes;
+   LCount   := ACount;
+   LHasMore := ( AMaxBytes > 0 ) and ( ACount > AMaxBytes );
+   if LHasMore then
+      LCount := AMaxBytes;
 
-  LSepLen   := Length( ASeparator );
-  LTotalLen := ( LCount shl 1 ) + ( Pred( LCount ) * LSepLen );
-  if LHasMore then
-    Inc( LTotalLen, LSepLen + 3 );
+   LSepLen   := Length( ASeparator );
+   LTotalLen := ( LCount shl 1 ) + ( Pred( LCount ) * LSepLen );
+   if LTotalLen <= 0 then
+      Exit('');
 
-  SetLength( Result, LTotalLen );
-  LDst := PChar( Result );
+   if LHasMore then
+      Inc( LTotalLen, LSepLen + 3 );
 
-  // Determine starting pointer and iteration direction once before the loop
-  if AEndianness = eBigEndian then begin
-    LSrc    := AData;
-    LSrcInc := 1;
-  end else begin
-    LSrc    := AData + ( ACount - 1 );
-    LSrcInc := -1;
-  end;
+   SetLength(Result, LTotalLen);
+   LDst := @Result[1];
 
-  for i := 0 to Pred( LCount ) do begin
-    if ( i > 0 ) and ( LSepLen > 0 ) then begin
-      Move( ASeparator[1], LDst^, LSepLen );
-      Inc( LDst, LSepLen );
-    end;
+   // Determine starting pointer and iteration direction once before the loop
+   LSrc := AData;
+   if AEndianness = eBigEndian then begin
+      LSrcInc := 1;
+   end else begin
+      Inc( LSrc, ACount-1 );
+      LSrcInc := -1;
+   end;
 
-    PHexPair( LDst )^ := HexPairTable[ LSrc^ ];
-    Inc( LDst, 2 );
-    Inc( LSrc, LSrcInc );
-  end;
+   WriteHexByte;
+   if LSepLen = 0 then begin
+      for i := 1 to Pred( LCount ) do begin
+         WriteHexByte;
+      end;
+   end else if LSepLen = 1 then begin
+      for i := 1 to Pred( LCount ) do begin
+         LDst^ := ASeparator[1];
+         Inc( LDst );
+         WriteHexByte;
+      end;
+   end else begin
+      for i := 1 to Pred( LCount ) do begin
+         Move( ASeparator[1], LDst^, LSepLen );
+         Inc( LDst, LSepLen );
+         WriteHexByte;
+      end;
+   end;
 
-  if LHasMore then begin
-    if LSepLen > 0 then begin
-      Move( ASeparator[1], LDst^, LSepLen );
-      Inc( LDst, LSepLen );
-    end;
-    LDst^ := '.'; Inc( LDst );
-    LDst^ := '.'; Inc( LDst );
-    LDst^ := '.';
-  end;
+   if LHasMore then begin
+      if LSepLen > 0 then begin
+         Move( ASeparator[1], LDst^, LSepLen );
+         Inc( LDst, LSepLen );
+      end;
+      LDst^ := '.'; Inc( LDst );
+      LDst^ := '.'; Inc( LDst );
+      LDst^ := '.';
+   end;
 end;
 
 { Core internal function for decoding HEX strings to byte arrays }
 function TryHexToBytesInternal( const AHex: string; out ABytes: TBytes; const ASeparator: string; AEndianness: TEndianness ): Boolean;
-  var i, LHexLen, LSepLen, LByteCount, LDstInc : Integer;
+  var i, LHexLen, LSepLen, LByteCount, LDstInc : SizeInt;
       LSrc                                     : PChar;
       LDstByte                                 : PByte;
       LHi, LLo                                 : ShortInt;
 begin
-  ABytes  := nil;
-  LHexLen := Length( AHex );
-  if LHexLen = 0 then Exit( True );
+   ABytes  := nil;
+   LHexLen := Length( AHex );
+   if LHexLen = 0 then Exit( True );
 
-  LSepLen := Length( ASeparator );
-  if LSepLen = 0 then begin
-    if Odd( LHexLen ) then Exit( False );
-    LByteCount := LHexLen div 2;
-  end else begin
-    LByteCount := ( LHexLen + LSepLen ) div ( 2 + LSepLen );
-    if LByteCount <= 0 then Exit( False );
-    if ( LByteCount shl 1 ) + ( Pred( LByteCount ) * LSepLen ) <> LHexLen then Exit( False );
-  end;
+   LSepLen := Length( ASeparator );
+   if LSepLen = 0 then begin
+      if Odd( LHexLen ) then Exit( False );
+      LByteCount := LHexLen div 2;
+   end else begin
+      LByteCount := ( LHexLen + LSepLen ) div ( 2 + LSepLen );
+      if LByteCount <= 0 then Exit( False );
+      if ( LByteCount shl 1 ) + ( Pred( LByteCount ) * LSepLen ) <> LHexLen then Exit( False );
+   end;
 
-  SetLength( ABytes, LByteCount );
-  LSrc := PChar( AHex );
+   SetLength( ABytes, LByteCount );
+   LSrc := PChar( AHex );
 
-  // Determine destination pointer and iteration direction once before the loop
-  if AEndianness = eBigEndian then begin
-    LDstByte := @ABytes[0];
-    LDstInc  := 1;
-  end else begin
-    LDstByte := @ABytes[ LByteCount - 1 ];
-    LDstInc  := -1;
-  end;
+   // Determine destination pointer and iteration direction once before the loop
+   if AEndianness = eBigEndian then begin
+      LDstByte := @ABytes[0];
+      LDstInc  := 1;
+   end else begin
+      LDstByte := @ABytes[ LByteCount - 1 ];
+      LDstInc  := -1;
+   end;
 
-  for i := 0 to Pred( LByteCount ) do begin
-    if ( i > 0 ) and ( LSepLen > 0 ) then begin
-      if not CompareMem( LSrc, PChar( ASeparator ), LSepLen ) then begin
-        ABytes := nil;
-        Exit( False );
+   for i := 0 to Pred( LByteCount ) do begin
+      if ( i > 0 ) and ( LSepLen > 0 ) then begin
+         if not {%H-}CompareMem( LSrc, PChar( ASeparator ), LSepLen ) then begin
+            ABytes := nil;
+            Exit( False );
+         end;
+         Inc( LSrc, LSepLen );
       end;
-      Inc( LSrc, LSepLen );
-    end;
 
-    LHi := HexNibbleTable[ Ord( LSrc[0] ) ];
-    LLo := HexNibbleTable[ Ord( LSrc[1] ) ];
-    if ( LHi < 0 ) or ( LLo < 0 ) then begin
-      ABytes := nil;
-      Exit( False );
-    end;
+      LHi := HexNibbleTable[ Ord( LSrc[0] ) ];
+      LLo := HexNibbleTable[ Ord( LSrc[1] ) ];
+      if ( LHi < 0 ) or ( LLo < 0 ) then begin
+         ABytes := nil;
+         Exit( False );
+      end;
 
-    LDstByte^ := Byte( ( LHi shl 4 ) or LLo );
-    Inc( LDstByte, LDstInc );
-    Inc( LSrc, 2 );
-  end;
+      LDstByte^ := Byte( ( LHi shl 4 ) or LLo );
+      Inc( LDstByte, LDstInc );
+      Inc( LSrc, 2 );
+   end;
 
-  Result := True;
+   Result := True;
 end;
 
 // --- Public Interface Wrappers ---
 
-function BytesToHex( const AData: PByte; const ACount: Integer; const ASeparator: string; AMaxBytes: Integer ): string;
+function BytesToHex( const AData: PByte; const ACount: SizeInt; const ASeparator: string; AMaxBytes: SizeInt ): string;
 begin
-  Result := BytesToHexInternal( AData, ACount, ASeparator, AMaxBytes, eBigEndian );
+   Result := BytesToHexInternal( AData, ACount, ASeparator, AMaxBytes, eBigEndian );
 end;
 
-function BytesToHex( const AData: array of Byte; const ASeparator: string; const AMaxBytes: Integer ): string;
+function BytesToHex( const AData: array of Byte; const ASeparator: string; const AMaxBytes: SizeInt ): string;
 begin
-  if Length( AData ) = 0 then Exit( '' );
-  Result := BytesToHexInternal( @AData[0], Length( AData ), ASeparator, AMaxBytes, eBigEndian );
+   if Length( AData ) = 0 then Exit( '' );
+   Result := BytesToHexInternal( @AData[0], Length( AData ), ASeparator, AMaxBytes, eBigEndian );
 end;
 
-function BytesToHexLE( const AData: PByte; const ACount: Integer; const ASeparator: string; AMaxBytes: Integer ): string;
+function BytesToHexLE( const AData: PByte; const ACount: SizeInt; const ASeparator: string; AMaxBytes: SizeInt ): string;
 begin
-  Result := BytesToHexInternal( AData, ACount, ASeparator, AMaxBytes, eLittleEndian );
+   Result := BytesToHexInternal( AData, ACount, ASeparator, AMaxBytes, eLittleEndian );
 end;
 
-function BytesToHexLE( const AData: array of Byte; const ASeparator: string; const AMaxBytes: Integer ): string;
+function BytesToHexLE( const AData: array of Byte; const ASeparator: string; const AMaxBytes: SizeInt ): string;
 begin
-  if Length( AData ) = 0 then Exit( '' );
-  Result := BytesToHexInternal( @AData[0], Length( AData ), ASeparator, AMaxBytes, eLittleEndian );
+   if Length( AData ) = 0 then Exit( '' );
+   Result := BytesToHexInternal( @AData[0], Length( AData ), ASeparator, AMaxBytes, eLittleEndian );
 end;
 
 function TryHexToBytes( const AHex: string; out ABytes: TBytes; const ASeparator: string ): Boolean;
 begin
-  Result := TryHexToBytesInternal( AHex, ABytes, ASeparator, eBigEndian );
+   Result := TryHexToBytesInternal( AHex, ABytes, ASeparator, eBigEndian );
 end;
 
 function HexToBytes( const AHex: string; const ASeparator: string ): TBytes;
 begin
-  if not TryHexToBytesInternal( AHex, Result, ASeparator, eBigEndian ) then
-    raise EConvertError.CreateFmt( 'Invalid HEX format: "%s"', [ AHex ] );
+   if not TryHexToBytesInternal( AHex, Result, ASeparator, eBigEndian ) then
+      raise EConvertError.CreateFmt( 'Invalid HEX format: "%s"', [ AHex ] );
 end;
 
 function TryHexToBytesLE( const AHex: string; out ABytes: TBytes; const ASeparator: string ): Boolean;
 begin
-  Result := TryHexToBytesInternal( AHex, ABytes, ASeparator, eLittleEndian );
+   Result := TryHexToBytesInternal( AHex, ABytes, ASeparator, eLittleEndian );
 end;
 
 function HexToBytesLE( const AHex: string; const ASeparator: string ): TBytes;
 begin
-  if not TryHexToBytesInternal( AHex, Result, ASeparator, eLittleEndian ) then
-    raise EConvertError.CreateFmt( 'Invalid HEX format (LE): "%s"', [ AHex ] );
+   if not TryHexToBytesInternal( AHex, Result, ASeparator, eLittleEndian ) then
+      raise EConvertError.CreateFmt( 'Invalid HEX format (LE): "%s"', [ AHex ] );
 end;
 
 procedure InitHexNibbleTable;
   var c : Char;
 begin
-  FillChar( HexNibbleTable, SizeOf( HexNibbleTable ), $FF ); // -1 = invalid character
-  for c := '0' to '9' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( '0' );
-  for c := 'A' to 'F' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( 'A' ) + 10;
-  for c := 'a' to 'f' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( 'a' ) + 10;
+   FillChar( HexNibbleTable, SizeOf( HexNibbleTable ), $FF ); // -1 = invalid character
+   for c := '0' to '9' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( '0' );
+   for c := 'A' to 'F' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( 'A' ) + 10;
+   for c := 'a' to 'f' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( 'a' ) + 10;
 end;
 
 initialization
-  InitHexNibbleTable;
+   InitHexNibbleTable;
 
 end.
