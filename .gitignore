@@ -7,3 +7,5 @@ _uSMBIOS.pas
 backup
 lib
 _*
+*.org
+*.pop
