@@ -127,7 +127,7 @@ begin
       LSrcInc := -1;
    end;
 
-   WriteHexByte;
+   {%H-}WriteHexByte;
    if LSepLen = 0 then begin
       for i := 1 to Pred( LCount ) do begin
          WriteHexByte;
