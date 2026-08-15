@@ -13,19 +13,86 @@ uses Windows
 
 const
    // Encoding flags used by CryptoAPI for certificates and PKCS#7 messages.
-   PKCS_7_ASN_ENCODING = $00010000;
+   CRYPT_ASN_ENCODING  = $00000001;
+   CRYPT_NDR_ENCODING  = $00000002;
    X509_ASN_ENCODING   = $00000001;
+   X509_NDR_ENCODING   = $00000002;
+   PKCS_7_ASN_ENCODING = $00010000;
+   PKCS_7_NDR_ENCODING = $00020000;
 
    // Combined encoding type commonly used when working with PKCS#7 signed data.
    MY_ENCODING_TYPE     = X509_ASN_ENCODING or PKCS_7_ASN_ENCODING;
 
 const
    // Certificate name string types used by CertGetNameStringW.
-   CERT_NAME_SIMPLE_DISPLAY_TYPE = 4;   // Human-readable display name
-   CERT_NAME_ATTR_TYPE           = 3;   // Specific RDN attribute (OID)
-   CERT_NAME_EMAIL_TYPE          = 1;   // Email address field
-   CERT_NAME_ISSUER_FLAG         = $1;  // Select issuer instead of subject
-   CERT_HASH_PROP_ID             = 3;   // SHA-1 hash property of certificate
+   CERT_NAME_SIMPLE_DISPLAY_TYPE              = 4;   // Human-readable display name
+   CERT_NAME_ATTR_TYPE                        = 3;   // Specific RDN attribute (OID)
+   CERT_NAME_EMAIL_TYPE                       = 1;   // Email address field
+   CERT_NAME_ISSUER_FLAG                      = $1;  // Select issuer instead of subject
+   CERT_HASH_PROP_ID                          = 3;   // SHA-1 hash property of certificate
+
+const
+   // dwObjectType for CryptQueryObject
+   CERT_QUERY_OBJECT_FILE                     = $00000001;
+   CERT_QUERY_OBJECT_BLOB                     = $00000002;
+
+const
+   // dwFormatType for CryptQueryObject
+   CERT_QUERY_FORMAT_BINARY                   = 1;    // the content is in binary format
+   CERT_QUERY_FORMAT_BASE64_ENCODED           = 2;    // the content is base64 encoded
+
+const
+   // dwExpectedFormatTypeFlags for CryptQueryObject
+   CERT_QUERY_FORMAT_FLAG_BINARY              = 1 shl CERT_QUERY_FORMAT_BINARY;         // the content is in binary format
+   CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED      = 1 shl CERT_QUERY_FORMAT_BASE64_ENCODED; // the content is base64 encoded
+
+   //the content can be of any format
+   CERT_QUERY_FORMAT_FLAG_ALL                 = CERT_QUERY_FORMAT_FLAG_BINARY or
+                                                CERT_QUERY_FORMAT_FLAG_BASE64_ENCODED;
+
+
+const
+   //dwConentType for CryptQueryObject
+   CERT_QUERY_CONTENT_CERT                    =  1;  // encoded single certificate
+   CERT_QUERY_CONTENT_CTL                     =  2;  // encoded single CTL
+   CERT_QUERY_CONTENT_CRL                     =  3;  // encoded single CRL
+   CERT_QUERY_CONTENT_SERIALIZED_STORE        =  4;  // serialized store
+   CERT_QUERY_CONTENT_SERIALIZED_CERT         =  5;  // serialized single certificate
+   CERT_QUERY_CONTENT_SERIALIZED_CTL          =  6;  // serialized single CTL
+   CERT_QUERY_CONTENT_SERIALIZED_CRL          =  7;  // serialized single CRL
+   CERT_QUERY_CONTENT_PKCS7_SIGNED            =  8;  // a PKCS#7 signed message
+   CERT_QUERY_CONTENT_PKCS7_UNSIGNED          =  9;  // a PKCS#7 message, such as enveloped message.  But it is not a signed message,
+   CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED      = 10;  // a PKCS7 signed message embedded in a file
+   CERT_QUERY_CONTENT_PKCS10                  = 11;  // an encoded PKCS#10
+   CERT_QUERY_CONTENT_PFX                     = 12;  // an encoded PKX BLOB
+
+   //dwExpectedConentTypeFlags for CryptQueryObject
+   CERT_QUERY_CONTENT_FLAG_CERT               = 1 shl CERT_QUERY_CONTENT_CERT;               // encoded single certificate
+   CERT_QUERY_CONTENT_FLAG_CTL                = 1 shl CERT_QUERY_CONTENT_CTL;                // encoded single CTL
+   CERT_QUERY_CONTENT_FLAG_CRL                = 1 shl CERT_QUERY_CONTENT_CRL;                // encoded single CRL
+   CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE   = 1 shl CERT_QUERY_CONTENT_SERIALIZED_STORE;   // serialized store
+   CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT    = 1 shl CERT_QUERY_CONTENT_SERIALIZED_CERT;    // serialized single certificate
+   CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL     = 1 shl CERT_QUERY_CONTENT_SERIALIZED_CTL;     // serialized single CTL
+   CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL     = 1 shl CERT_QUERY_CONTENT_SERIALIZED_CRL;     // serialized single CRL
+   CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED       = 1 shl CERT_QUERY_CONTENT_PKCS7_SIGNED;       // an encoded PKCS#7 signed message
+   CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED     = 1 shl CERT_QUERY_CONTENT_PKCS7_UNSIGNED;     // an encoded PKCS#7 message.  But it is not a signed message
+   CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED = 1 shl CERT_QUERY_CONTENT_PKCS7_SIGNED_EMBED; // the content includes an embedded PKCS7 signed message
+   CERT_QUERY_CONTENT_FLAG_PKCS10             = 1 shl CERT_QUERY_CONTENT_PKCS10;             // an encoded PKCS#10
+   CERT_QUERY_CONTENT_FLAG_PFX                = 1 shl CERT_QUERY_CONTENT_PFX;                // an encoded PFX BLOB
+
+   //content can be any type
+   CERT_QUERY_CONTENT_FLAG_ALL                = CERT_QUERY_CONTENT_FLAG_CERT or
+                                                CERT_QUERY_CONTENT_FLAG_CTL or
+                                                CERT_QUERY_CONTENT_FLAG_CRL or
+                                                CERT_QUERY_CONTENT_FLAG_SERIALIZED_STORE or
+                                                CERT_QUERY_CONTENT_FLAG_SERIALIZED_CERT or
+                                                CERT_QUERY_CONTENT_FLAG_SERIALIZED_CTL or
+                                                CERT_QUERY_CONTENT_FLAG_SERIALIZED_CRL or
+                                                CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED or
+                                                CERT_QUERY_CONTENT_FLAG_PKCS7_UNSIGNED or
+                                                CERT_QUERY_CONTENT_FLAG_PKCS7_SIGNED_EMBED or
+                                                CERT_QUERY_CONTENT_FLAG_PKCS10 or
+                                                CERT_QUERY_CONTENT_FLAG_PFX;
 
 const
    // OIDs for selected RDN attributes used with CERT_NAME_ATTR_TYPE.
@@ -51,6 +118,7 @@ type
 
    // Aliases used by CryptoAPI for different blob types.
    CRYPT_INTEGER_BLOB = _CRYPTOAPI_BLOB;
+   CRYPT_DATA_BLOB    = _CRYPTOAPI_BLOB;
    CERT_NAME_BLOB     = _CRYPTOAPI_BLOB;
    CRYPT_OBJID_BLOB   = _CRYPTOAPI_BLOB;
 
@@ -77,7 +145,7 @@ type
       SerialNumber            : CRYPT_INTEGER_BLOB;
       HashAlgorithm           : CRYPT_ALGORITHM_IDENTIFIER;
       HashEncryptionAlgorithm : CRYPT_ALGORITHM_IDENTIFIER;
-      EncryptedHash           : CRYPT_INTEGER_BLOB;
+      EncryptedHash           : CRYPT_DATA_BLOB;
       AuthAttrs               : CRYPT_ATTRIBUTES;
       UnauthAttrs             : CRYPT_ATTRIBUTES;
    end;
