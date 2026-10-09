@@ -429,8 +429,9 @@ type TWin10orLaterReleaseInfo = record
 end;
 
 // Tablica z wersjami, KONIECZNIE posortowana od najwyższego numeru kompilacji do najniższego
-const MAX_RELEASES = 20;
+const MAX_RELEASES = 21;
 const asWindowsRelease: array[ 0..MAX_RELEASES-1 ] of TWin10orLaterReleaseInfo = (
+      ( MinBuild: 26300;  Version: '11';  ReleaseId: '26H2' ),
       ( MinBuild: 26200;  Version: '11';  ReleaseId: '25H2' ),
       ( MinBuild: 26100;  Version: '11';  ReleaseId: '24H2' ),
       ( MinBuild: 22631;  Version: '11';  ReleaseId: '23H2' ),
