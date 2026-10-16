@@ -10,12 +10,16 @@ uses Classes;
 type
    TTableFrameMode = (tfNone, tfSingle, tfHalfDouble, tfDouble);
 
+   TDisplayWidthFunc = function(const S: string): SizeInt;
+
    { TTableFormatOptions }
 
    TTableFormatOptions = record
       SrcSep     : Char;
       UseMarkers : Boolean;
       Mode       : TTableFrameMode;
+      Replacement: string;
+      WidthFunc  : TDisplayWidthFunc;
 
       // Defaults: SrcSep = '|', UseMarkers = True, Mode = tfDouble.
       class function Create: TTableFormatOptions; static;
@@ -23,7 +27,9 @@ type
       function WithSrcSep(const ASrcSep: Char): TTableFormatOptions;
       function WithUseMarkers(const AUseMarkers: Boolean): TTableFormatOptions;
       function WithMode(const AMode: TTableFrameMode): TTableFormatOptions;
+      function WithReplacement(const AReplacement: string): TTableFormatOptions;
    end;
+
 
    { TTextTableHelper }
 
@@ -60,7 +66,9 @@ procedure FormatTable(AStrings: TStrings; const AOptions: TTableFormatOptions); 
 
 implementation
 
-uses SysUtils;
+uses SysUtils
+   , LazUTF8
+   ;
 
 type
    TCellAlign = (caLeft, caRight, caCenter);
@@ -85,74 +93,146 @@ type
    end;
 
 const
-   // U+250C, U+2500, U+252C, U+2510, U+2502, U+2514, U+2534, U+2518
-   SingleFrameModel: TFrameModel = (
-      TopLeftChar    : '┌';
-      HorizontalChar : '─';
-      TDownChar      : '┬';
-      TopRightChar   : '┐';
-      VerticalChar   : '│';
-      BottomLeftChar : '└';
-      TUpChar        : '┴';
-      BottomRightChar: '┘'
+   // Frame characters as raw UTF-8 bytes (source-encoding independent).
+   // Order matches TTableFrameMode: tfNone, tfSingle, tfHalfDouble, tfDouble.
+   FrameModels: array[TTableFrameMode] of TFrameModel = (
+      // tfNone
+      (TopLeftChar    : ' ';
+       HorizontalChar : ' ';
+       TDownChar      : ' ';
+       TopRightChar   : ' ';
+       VerticalChar   : ' ';
+       BottomLeftChar : ' ';
+       TUpChar        : ' ';
+       BottomRightChar: ' '),
+
+      // tfSingle: U+250C U+2500 U+252C U+2510 U+2502 U+2514 U+2534 U+2518
+      (TopLeftChar    : #$E2#$94#$8C;
+       HorizontalChar : #$E2#$94#$80;
+       TDownChar      : #$E2#$94#$AC;
+       TopRightChar   : #$E2#$94#$90;
+       VerticalChar   : #$E2#$94#$82;
+       BottomLeftChar : #$E2#$94#$94;
+       TUpChar        : #$E2#$94#$B4;
+       BottomRightChar: #$E2#$94#$98),
+
+      // tfHalfDouble: U+2552 U+2550 U+2564 U+2555 U+2502 U+2558 U+2567 U+255B
+      (TopLeftChar    : #$E2#$95#$92;
+       HorizontalChar : #$E2#$95#$90;
+       TDownChar      : #$E2#$95#$A4;
+       TopRightChar   : #$E2#$95#$95;
+       VerticalChar   : #$E2#$94#$82;
+       BottomLeftChar : #$E2#$95#$98;
+       TUpChar        : #$E2#$95#$A7;
+       BottomRightChar: #$E2#$95#$9B),
+
+      // tfDouble: U+2554 U+2550 U+2566 U+2557 U+2551 U+255A U+2569 U+255D
+      (TopLeftChar    : #$E2#$95#$94;
+       HorizontalChar : #$E2#$95#$90;
+       TDownChar      : #$E2#$95#$A6;
+       TopRightChar   : #$E2#$95#$97;
+       VerticalChar   : #$E2#$95#$91;
+       BottomLeftChar : #$E2#$95#$9A;
+       TUpChar        : #$E2#$95#$A9;
+       BottomRightChar: #$E2#$95#$9D)
    );
 
-   // U+2554, U+2550, U+2566, U+2557, U+2551, U+255A, U+2569, U+255D
-   DoubleFrameModel: TFrameModel = (
-      TopLeftChar    : '╔';
-      HorizontalChar : '═';
-      TDownChar      : '╦';
-      TopRightChar   : '╗';
-      VerticalChar   : '║';
-      BottomLeftChar : '╚';
-      TUpChar        : '╩';
-      BottomRightChar: '╝'
-   );
-
-   // Double horizontal lines, single vertical lines.
-   // U+2552, U+2550, U+2564, U+2555, U+2502, U+2558, U+2567, U+255B
-   HalfFrameModel: TFrameModel = (
-      TopLeftChar    : '╒';
-      HorizontalChar : '═';
-      TDownChar      : '╤';
-      TopRightChar   : '╕';
-      VerticalChar   : '│';
-      BottomLeftChar : '╘';
-      TUpChar        : '╧';
-      BottomRightChar: '╛'
-   );
-
-   NoneFrameModel: TFrameModel = (
-      TopLeftChar    : ' ';
-      HorizontalChar : ' ';
-      TDownChar      : ' ';
-      TopRightChar   : ' ';
-      VerticalChar   : ' ';
-      BottomLeftChar : ' ';
-      TUpChar        : ' ';
-      BottomRightChar: ' '
-   );
-
-function UTF8CodePointCount(const AText: string): SizeInt;
-   var ch: Char;
+function IsGraphemeExtension(const CodePoint: Cardinal): Boolean;
 begin
-   Result := 0;
-   for ch in AText do
-      if (Ord(ch) and $C0) <> $80 then Inc(Result);
+  Result :=
+     (CodePoint = $200D) or      // ZWJ
+     (CodePoint = $200C) or      // ZWNJ
+
+     // Combining marks
+     ((CodePoint >= $0300) and (CodePoint <= $036F)) or
+     ((CodePoint >= $1AB0) and (CodePoint <= $1AFF)) or
+     ((CodePoint >= $1DC0) and (CodePoint <= $1DFF)) or
+     ((CodePoint >= $20D0) and (CodePoint <= $20FF)) or
+     ((CodePoint >= $FE20) and (CodePoint <= $FE2F)) or
+
+     // Variation selectors
+     ((CodePoint >= $FE00) and (CodePoint <= $FE0F)) or
+     ((CodePoint >= $E0100) and (CodePoint <= $E01EF)) or
+
+     // Emoji modifiers
+     ((CodePoint >= $1F3FB) and (CodePoint <= $1F3FF));
 end;
 
-function Spaces(const N: SizeInt): string;
+function IsComplexGrapheme(const CodePoint: Cardinal): Boolean;
+begin
+  Result :=
+
+     // Emoji
+     ((CodePoint >= $1F300) and (CodePoint <= $1FAFF)) or
+
+     // Flags
+     ((CodePoint >= $1F1E6) and (CodePoint <= $1F1FF)) or
+
+     // CJK
+     ((CodePoint >= $2E80) and (CodePoint <= $A4CF)) or
+     ((CodePoint >= $AC00) and (CodePoint <= $D7A3)) or
+     ((CodePoint >= $F900) and (CodePoint <= $FAFF));
+end;
+
+function UTF8NormalizeForMonospace(const S: string; const Replacement: string): string;
+  var P    : PChar;
+      CP   : Cardinal;
+      Len  : Integer;
+begin
+   Result := '';
+   P := PChar(S);
+
+   while P^ <> #0 do begin
+      CP := UTF8CodepointToUnicode(P, Len);
+      if IsComplexGrapheme(CP) then begin
+         Result += Replacement;
+         Inc(P, Len);
+         while P^ <> #0 do begin
+            CP := UTF8CodepointToUnicode(P, Len);
+            if IsGraphemeExtension(CP) or IsComplexGrapheme(CP)
+               then Inc(P, Len)
+               else Break;
+         end;
+         Continue;
+      end;
+      if not IsGraphemeExtension(CP)
+         then Result += UnicodeToUTF8(CP);
+
+      Inc(P, Len);
+   end;
+end;
+
+function Spaces(const N: SizeInt): string; inline;
 begin
    Result := StringOfChar(' ', N);
 end;
 
+//function RepeatStr(const AText: string; const ACount: SizeInt): string;
+//   var I: SizeInt;
+//begin
+//   Result := '';
+//   for I := 1 to ACount do
+//      Result := Result + AText;
+//end;
+
 function RepeatStr(const AText: string; const ACount: SizeInt): string;
-   var I: SizeInt;
+  var I, L: SizeInt;
 begin
+   if (ACount <= 0) or (AText = '') then
+      Exit('');
+
+   L := Length(AText);
+
+   if ACount > High(SizeInt) div L then
+      raise ERangeError.Create('Repeated string is too large');
+
    Result := '';
-   for I := 1 to ACount do
-      Result := Result + AText;
+   SetLength(Result, L * ACount);
+
+   for I := 0 to ACount - 1 do
+      Move(AText[1], Result[I * L + 1], L);
 end;
+
 
 // Extracts an optional alignment marker from the beginning of a cell.
 //
@@ -181,28 +261,32 @@ end;
 // A trailing source separator does not create an additional empty cell.
 // Right-side whitespace is removed from each cell before its length
 // is calculated.
-function ParseCellRow(const ASrc: string; const ASrcSep: Char;
-                      const AUseMarkers: Boolean): TCellRow;
+function ParseCellRow(const ASrc: string; const AOptions: TTableFormatOptions): TCellRow;
    var Parts : TStringArray;
        I     : SizeInt;
+       LWidthFunc : TDisplayWidthFunc;
 begin
-   Parts := ASrc.Split([ASrcSep]);
+   Parts := ASrc.Split([AOptions.SrcSep]);
 
    // A trailing separator is treated as a row terminator,
    // not as an additional empty cell.
-   if (ASrc <> '') and (ASrc[Length(ASrc)] = ASrcSep) then
+   if (ASrc <> '') and (ASrc[Length(ASrc)] = AOptions.SrcSep) then
       SetLength(Parts, Length(Parts) - 1);
 
    SetLength(Result{%H-}, Length(Parts));
 
-   for I := 0 to High(Parts) do begin
-      Result[I].Text := Parts[I].TrimRight;
+   if AOptions.WidthFunc = nil
+      then LWidthFunc := @UTF8CodePointCount
+      else LWidthFunc := AOptions.WidthFunc;
 
-      if AUseMarkers
+   for I := 0 to High(Parts) do begin
+      Result[I].Text := UTF8NormalizeForMonospace(Parts[I].TrimRight, AOptions.Replacement);
+
+      if AOptions.UseMarkers
          then ParseCellMarker(Result[I].Text, Result[I].Align)
          else Result[I].Align := caLeft;
 
-      Result[I].Width := UTF8CodePointCount(Result[I].Text);
+      Result[I].Width := LWidthFunc(Result[I].Text);
    end;
 end;
 
@@ -234,14 +318,14 @@ end;
 // which matches the layout of the data rows.
 function BuildFrameLine(const AWidths: array of SizeInt;
                         const ALeft, AJunction, ARight, AHoriz: string): string;
-   var I: SizeInt;
+   var i: SizeInt;
 begin
    Result := ALeft + AHoriz;
 
    if Length(AWidths)>0 then begin
       Result += RepeatStr(AHoriz, AWidths[0]);
       for i:=1 to High(AWidths) do begin
-          Result += AHoriz + AJunction + AHoriz + RepeatStr(AHoriz, AWidths[I]);
+          Result += AHoriz + AJunction + AHoriz + RepeatStr(AHoriz, AWidths[i]);
       end;
    end;
    Result += AHoriz + ARight;
@@ -258,19 +342,13 @@ begin
    if (AStrings = nil) or (AStrings.Count = 0) then
       Exit;
 
-   case AOptions.Mode of
-      tfSingle    : FrameModel := SingleFrameModel;
-      tfDouble    : FrameModel := DoubleFrameModel;
-      tfHalfDouble: FrameModel := HalfFrameModel;
-      else          FrameModel := NoneFrameModel;
-   end;
-
-   Joiner := ' ' + FrameModel.VerticalChar + ' ';
+   FrameModel := FrameModels[AOptions.Mode];
+   Joiner     := ' ' + FrameModel.VerticalChar + ' ';
    SetLength(Rows, AStrings.Count);
 
    // Parse all rows and determine the maximum width of each column.
    for I := 0 to AStrings.Count - 1 do begin
-      Rows[I] := ParseCellRow(AStrings[I], AOptions.SrcSep, AOptions.UseMarkers);
+      Rows[I] := ParseCellRow(AStrings[I], AOptions);
 
       if Length(Rows[I]) > Length(Widths) then
          SetLength(Widths, Length(Rows[I]));
@@ -291,8 +369,9 @@ begin
                then Padded[C] := PadCell(Rows[I][C], Widths[C])
                else Padded[C] := Spaces(Widths[C]);   // missing cell
 
-         AStrings[I] := FrameModel.VerticalChar + ' ' + string.Join(Joiner, Padded) +
-                        ' ' + FrameModel.VerticalChar;
+         AStrings[I] := FrameModel.VerticalChar + ' ' +
+                        string.Join(Joiner, Padded) + ' ' +
+                        FrameModel.VerticalChar;
       end;
 
       if AOptions.Mode <> tfNone then begin
@@ -318,9 +397,11 @@ end;
 
 class function TTableFormatOptions.Create: TTableFormatOptions;
 begin
-   Result.SrcSep     := '|';
-   Result.UseMarkers := True;
-   Result.Mode       := tfDouble;
+   Result.SrcSep      := '|';
+   Result.UseMarkers  := True;
+   Result.Mode        := tfDouble;
+   Result.Replacement := '*';
+   Result.WidthFunc   := nil;
 end;
 
 function TTableFormatOptions.WithSrcSep(const ASrcSep: Char): TTableFormatOptions;
@@ -339,6 +420,12 @@ function TTableFormatOptions.WithMode(const AMode: TTableFrameMode): TTableForma
 begin
    Result := Self;
    Result.Mode := AMode;
+end;
+
+function TTableFormatOptions.WithReplacement(const AReplacement: string): TTableFormatOptions;
+begin
+   Result := Self;
+   Result.Replacement := AReplacement;
 end;
 
 { TTextTableHelper }
