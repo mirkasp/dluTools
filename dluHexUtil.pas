@@ -39,6 +39,10 @@ function TryHexToBytes( const AHex: string; out ABytes: TBytes; const ASeparator
 // Same as TryHexToBytes, but raises EConvertError on invalid format instead of returning False.
 function HexToBytes( const AHex: string; const ASeparator: string = '' ): TBytes; inline;
 
+
+function ExtractHexBytes(const AHex: string): TBytes;
+
+
 // --- Little-Endian (Reversed Order) Functions ---
 
 // Converts a byte buffer to a HEX string in Little-Endian byte order (from last byte to first byte).
@@ -268,6 +272,97 @@ begin
    for c := 'A' to 'F' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( 'A' ) + 10;
    for c := 'a' to 'f' do HexNibbleTable[ Ord( c ) ] := Ord( c ) - Ord( 'a' ) + 10;
 end;
+
+
+function HexToBytesHybrid(const Hex: string): TBytes;
+  var i, OutIdx, HexLen: Integer;
+      B, Nibble        : Byte;
+      HaveHighNibble   : Boolean;
+
+  function TryCharToNibble(C: Char; out N: Byte): Boolean; inline;
+  begin
+    case C of
+      '0'..'9': begin N := Ord(C) - Ord('0');      Exit(True); end;
+      'a'..'f': begin N := Ord(C) - Ord('a') + 10; Exit(True); end;
+      'A'..'F': begin N := Ord(C) - Ord('A') + 10; Exit(True); end;
+    end;
+    Result := False;
+  end;
+
+begin
+   HexLen := Length(Hex);
+   if HexLen = 0 then begin
+      Result := nil;
+      Exit;
+   end;
+
+   SetLength(Result, (HexLen + 1) div 2);
+
+   OutIdx := 0;
+   B := 0;
+   HaveHighNibble := False;
+
+   for i := 1 to HexLen do begin
+      if TryCharToNibble(Hex[i], Nibble) then begin
+         if HaveHighNibble then begin
+            Result[OutIdx] := (B shl 4) or Nibble;
+            Inc(OutIdx);
+         end else
+            B := Nibble;
+         HaveHighNibble := not HaveHighNibble;
+      end;
+   end;
+
+   if OutIdx <> Length(Result) then
+      SetLength(Result, OutIdx);
+
+end;
+
+
+
+{ Extracts complete HEX byte pairs from a string.
+  Non-HEX characters are ignored.
+  A final unpaired HEX digit is ignored.
+  Returns nil if no complete byte can be extracted. }
+function ExtractHexBytes(const AHex: string): TBytes;
+  var i, OutIdx, HexLen: SizeInt;
+      B     : Byte;
+      Nibble: ShortInt;
+      HaveHighNibble: Boolean;
+begin
+   Result := nil;
+   HexLen := Length(AHex);
+   if HexLen < 2 then Exit;
+
+   SetLength(Result, HexLen div 2);
+
+   OutIdx         := 0;
+   B              := 0;
+   HaveHighNibble := False;
+
+   for i := 1 to HexLen do begin
+      Nibble := HexNibbleTable[Ord(AHex[i])];
+
+      if Nibble < 0 then Continue;
+
+      if HaveHighNibble then begin
+         Result[OutIdx] := (B shl 4) or Byte(Nibble);
+         Inc(OutIdx);
+         HaveHighNibble := False;
+      end else begin
+         B := Byte(Nibble);
+         HaveHighNibble := True;
+      end;
+   end;
+
+   if OutIdx = 0 then
+      Result := nil
+   else
+      SetLength(Result, OutIdx);
+end;
+
+
+
 
 initialization
    InitHexNibbleTable;
