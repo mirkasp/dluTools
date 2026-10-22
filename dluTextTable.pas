@@ -207,14 +207,6 @@ begin
    Result := StringOfChar(' ', N);
 end;
 
-//function RepeatStr(const AText: string; const ACount: SizeInt): string;
-//   var I: SizeInt;
-//begin
-//   Result := '';
-//   for I := 1 to ACount do
-//      Result := Result + AText;
-//end;
-
 function RepeatStr(const AText: string; const ACount: SizeInt): string;
   var I, L: SizeInt;
 begin
@@ -249,8 +241,7 @@ begin
       '<': AAlign := caLeft;
       '>': AAlign := caRight;
       '^': AAlign := caCenter;
-   else
-      Exit;
+      else Exit;
    end;
 
    Delete(AText, 1, 1);
