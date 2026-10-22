@@ -410,7 +410,7 @@ begin
          else Result := Result + '-';
 end;
 
-// Poniżej masz ultra‑szybką, minimalistyczną wersję, która czyta tylko pierwsze 1024 bajty pliku — dokładnie tyle, ile potrzeba, aby:
+// Poniżej masz ultraszybką, minimalistyczną wersję, która czyta tylko pierwsze 1024 bajty pliku — dokładnie tyle, ile potrzeba, aby:
 // odczytać DOS header,
 // sprawdzić e_lfanew,
 // odczytać NT header,
